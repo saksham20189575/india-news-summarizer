@@ -32,7 +32,7 @@ async function seedViaFile() {
 }
 
 async function main() {
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  if (process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID) {
     const key = process.env.PUBLISH_API_KEY;
     if (!key || key === "change-me-generate-with-openssl-rand-hex-32") {
       throw new Error("Set PUBLISH_API_KEY in web/.env.local to seed via Blob storage");

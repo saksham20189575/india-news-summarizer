@@ -7,7 +7,7 @@
  *
  * n8n Variables:
  *   GEMINI_API_KEY ($vars.GEMINI_API_KEY)
- *   PUBLISH_API_KEY ($vars.PUBLISH_API_KEY) — same value as Railway
+ *   PUBLISH_API_KEY ($vars.PUBLISH_API_KEY) — same value as Vercel env
  * Optional: AI_MOCK=true (dev only)
  *
  * Production publish URL:
@@ -73,7 +73,7 @@ const runtimeConfig = {
     publishMethod: shared.website.publishMethod,
     authHeaderTemplate: shared.website.authHeader,
     apiKeyCredentialHint:
-      "Store PUBLISH_API_KEY in n8n credentials / Header Auth; do not hardcode.",
+      "Set PUBLISH_API_KEY in n8n Variables ($vars.PUBLISH_API_KEY); same value as Vercel. Do not hardcode.",
   },
   categories: shared.categories,
   sources: shared.sources.map((s) => ({
@@ -644,7 +644,7 @@ const workflow = {
   name: "India News Summarizer",
   active: false,
   notes:
-    "Phase 6/7: Collect → normalize → AI → format → publish. Variables: GEMINI_API_KEY, PUBLISH_API_KEY ($vars). Keep inactive until Phase 8. TZ Asia/Kolkata.",
+    "Phase 6/7: Collect → normalize → AI → format → publish. n8n Variables: GEMINI_API_KEY, PUBLISH_API_KEY ($vars.PUBLISH_API_KEY). Publish: india-news-summarizer.vercel.app. Keep inactive until Phase 8. TZ Asia/Kolkata.",
   settings: {
     executionOrder: "v1",
     timezone: "Asia/Kolkata",
@@ -656,7 +656,7 @@ const workflow = {
     templateCredsSetupCompleted: true,
     phase: 6,
     description:
-      "Hourly India news summarizer — format canonical JSON and publish to Railway API (Phase 7 retries)",
+      "Hourly India news summarizer — format canonical JSON and publish to Vercel API (Phase 7 retries)",
   },
   pinsData: {},
   versionId: crypto.randomUUID(),
@@ -773,7 +773,7 @@ const workflow = {
       typeVersion: 2,
       position: [2400, 160],
       notes:
-        "PUT to config.website.publishUrl with Bearer PUBLISH_API_KEY. Retries 5xx/timeouts; failed runs do not wipe Railway storage.",
+        "PUT https://india-news-summarizer.vercel.app/api/summary with Bearer $vars.PUBLISH_API_KEY. Retries 5xx/timeouts; failed runs do not wipe stored briefing.",
     },
     {
       parameters: {},

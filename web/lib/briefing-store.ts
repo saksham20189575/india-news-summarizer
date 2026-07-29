@@ -7,8 +7,26 @@ const BLOB_PATHNAME = "latest-summary.json";
 const FILE_PATH = path.join(process.cwd(), "data", "latest-summary.json");
 const TMP_PATH = path.join(process.cwd(), "data", "latest-summary.json.tmp");
 
+/** True when Vercel Blob credentials are available (token or connected store + OIDC). */
+export function hasBlobStorageConfigured(): boolean {
+  if (process.env.BLOB_READ_WRITE_TOKEN) return true;
+  // Connected Blob stores on Vercel use BLOB_STORE_ID + VERCEL_OIDC_TOKEN (not always BLOB_READ_WRITE_TOKEN).
+  if (process.env.BLOB_STORE_ID) return true;
+  return false;
+}
+
 function useBlobStorage(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return hasBlobStorageConfigured();
+}
+
+function assertWritableStorage(): void {
+  if (useBlobStorage()) return;
+
+  if (process.env.VERCEL) {
+    throw new Error(
+      "Blob storage is not configured on Vercel. Connect a Blob store to this project (Storage → Blob → Connect to Project), then redeploy."
+    );
+  }
 }
 
 async function readFromBlob(): Promise<Briefing | null> {
@@ -39,6 +57,7 @@ async function writeToBlob(briefing: Briefing): Promise<void> {
   await put(BLOB_PATHNAME, JSON.stringify(briefing, null, 2), {
     access: "public",
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: "application/json",
   });
 }
@@ -58,6 +77,8 @@ export async function readLatest(): Promise<Briefing | null> {
 }
 
 export async function writeLatestAtomic(briefing: Briefing): Promise<void> {
+  assertWritableStorage();
+
   if (useBlobStorage()) {
     await writeToBlob(briefing);
     return;
@@ -68,6 +89,15 @@ export async function writeLatestAtomic(briefing: Briefing): Promise<void> {
 
 export function getStorageMode(): "blob" | "file" {
   return useBlobStorage() ? "blob" : "file";
+}
+
+export function getStorageDiagnostics() {
+  return {
+    mode: getStorageMode(),
+    hasReadWriteToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    hasStoreId: Boolean(process.env.BLOB_STORE_ID),
+    onVercel: Boolean(process.env.VERCEL),
+  };
 }
 
 export { FILE_PATH as LOCAL_DATA_PATH };

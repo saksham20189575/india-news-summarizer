@@ -15,7 +15,7 @@
     "description": "Hourly India news summarizer — format canonical JSON and publish to Railway API (Phase 7 retries)"
   },
   "pinsData": {},
-  "versionId": "0d40ffd9-64bb-4616-8b3b-e59947f88207",
+  "versionId": "1222becc-7783-48d1-ba0e-a9f16800a137",
   "nodes": [
     {
       "parameters": {},
@@ -54,7 +54,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "47e0cb9f-da13-4ee8-ade0-f3355671bfba",
+              "id": "a935a0f3-f125-4935-be97-c77eec9f93b1",
               "name": "mode",
               "value": "manual",
               "type": "string"
@@ -77,7 +77,7 @@
         "assignments": {
           "assignments": [
             {
-              "id": "173e897f-2f8c-4877-8e39-06ef00868b71",
+              "id": "d3e69c9a-e666-40ec-a55a-4acc6ec88a9f",
               "name": "mode",
               "value": "scheduled",
               "type": "string"
@@ -110,7 +110,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Phase 1 — Central config (generated from config/sources.json)\n// Re-run: node workflows/scripts/generate-phase4-workflow.js\nconst run = $input.first().json;\n\nconst config = {\n  \"timezone\": \"Asia/Kolkata\",\n  \"maxArticlesPerSource\": 2,\n  \"maxArticlesTotal\": 10,\n  \"llm\": {\n    \"provider\": \"gemini\",\n    \"model\": \"gemini-3.5-flash-lite\",\n    \"thinkingLevel\": \"minimal\",\n    \"categorizeBatchSize\": 10,\n    \"maxContentChars\": 500,\n    \"minConfidence\": 0.35,\n    \"maxRetries\": 1,\n    \"timeoutMs\": 60000,\n    \"maxRequestsPerRun\": 16,\n    \"minRequestGapMs\": 4200,\n    \"rateLimits\": {\n      \"requestsPerMinute\": 15,\n      \"tokensPerMinute\": 250000,\n      \"requestsPerDay\": 500\n    },\n    \"notes\": \"Gemini 3.5 Flash Lite. n8n: set Variable GEMINI_API_KEY ($vars.GEMINI_API_KEY). Client enforces ~4.2s gap (15 RPM), TPM estimate, 16 req/run (~384/day at hourly) under 500 RPD.\"\n  },\n  \"website\": {\n    \"publishUrl\": \"http://localhost:4000/api/summary\",\n    \"publishMethod\": \"PUT\",\n    \"authHeaderTemplate\": \"Authorization: Bearer <PUBLISH_API_KEY>\",\n    \"apiKeyCredentialHint\": \"Store PUBLISH_API_KEY in n8n credentials / Header Auth; do not hardcode.\"\n  },\n  \"categories\": [\n    \"Politics\",\n    \"Sports\",\n    \"Business\",\n    \"Technology\",\n    \"Entertainment\",\n    \"Health\",\n    \"Education\",\n    \"Crime\",\n    \"Weather\",\n    \"World\"\n  ],\n  \"sources\": [\n    {\n      \"id\": \"india_today\",\n      \"name\": \"India Today\",\n      \"type\": \"rss\",\n      \"url\": \"https://www.indiatoday.in/\",\n      \"rssUrl\": \"https://www.indiatoday.in/rss/1206578\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"ndtv_india\",\n      \"name\": \"NDTV\",\n      \"type\": \"rss\",\n      \"url\": \"https://www.ndtv.com/india\",\n      \"rssUrl\": \"https://feeds.feedburner.com/ndtvnews-india-news\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"toi_india\",\n      \"name\": \"Times of India\",\n      \"type\": \"rss\",\n      \"url\": \"https://timesofindia.indiatimes.com/india\",\n      \"rssUrl\": \"https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"ht_india\",\n      \"name\": \"Hindustan Times\",\n      \"type\": \"rss\",\n      \"url\": \"https://www.hindustantimes.com/india-news\",\n      \"rssUrl\": \"https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"ie_india\",\n      \"name\": \"Indian Express\",\n      \"type\": \"rss\",\n      \"url\": \"https://indianexpress.com/section/india/\",\n      \"rssUrl\": \"https://indianexpress.com/section/india/feed/\",\n      \"enabled\": true\n    }\n  ]\n};\n\nconst enabledSources = config.sources.filter((s) => s.enabled);\n\nreturn [\n  {\n    json: {\n      ...run,\n      config: {\n        ...config,\n        enabledSourceCount: enabledSources.length,\n      },\n      phase: 'phase6-ready',\n      nextPhaseHint: 'Collect → normalize → AI → format → publish',\n    },\n  },\n];\n"
+        "jsCode": "// Phase 1 — Central config (generated from config/sources.json)\n// Re-run: node workflows/scripts/generate-phase4-workflow.js\nconst run = $input.first().json;\n\nconst config = {\n  \"timezone\": \"Asia/Kolkata\",\n  \"maxArticlesPerSource\": 2,\n  \"maxArticlesTotal\": 10,\n  \"llm\": {\n    \"provider\": \"gemini\",\n    \"model\": \"gemini-3.5-flash-lite\",\n    \"thinkingLevel\": \"minimal\",\n    \"categorizeBatchSize\": 10,\n    \"maxContentChars\": 500,\n    \"minConfidence\": 0.35,\n    \"maxRetries\": 1,\n    \"timeoutMs\": 60000,\n    \"maxRequestsPerRun\": 16,\n    \"minRequestGapMs\": 4200,\n    \"rateLimits\": {\n      \"requestsPerMinute\": 15,\n      \"tokensPerMinute\": 250000,\n      \"requestsPerDay\": 500\n    },\n    \"notes\": \"Gemini 3.5 Flash Lite. n8n: set Variable GEMINI_API_KEY ($vars.GEMINI_API_KEY). Client enforces ~4.2s gap (15 RPM), TPM estimate, 16 req/run (~384/day at hourly) under 500 RPD.\"\n  },\n  \"website\": {\n    \"publishUrl\": \"https://india-news-summarizer.vercel.app/api/summary\",\n    \"publishMethod\": \"PUT\",\n    \"authHeaderTemplate\": \"Authorization: Bearer <PUBLISH_API_KEY>\",\n    \"apiKeyCredentialHint\": \"Set PUBLISH_API_KEY in n8n Variables ($vars.PUBLISH_API_KEY); same value as Vercel. Do not hardcode.\"\n  },\n  \"categories\": [\n    \"Politics\",\n    \"Sports\",\n    \"Business\",\n    \"Technology\",\n    \"Entertainment\",\n    \"Health\",\n    \"Education\",\n    \"Crime\",\n    \"Weather\",\n    \"World\"\n  ],\n  \"sources\": [\n    {\n      \"id\": \"india_today\",\n      \"name\": \"India Today\",\n      \"type\": \"rss\",\n      \"url\": \"https://www.indiatoday.in/\",\n      \"rssUrl\": \"https://www.indiatoday.in/rss/1206578\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"ndtv_india\",\n      \"name\": \"NDTV\",\n      \"type\": \"rss\",\n      \"url\": \"https://www.ndtv.com/india\",\n      \"rssUrl\": \"https://feeds.feedburner.com/ndtvnews-india-news\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"toi_india\",\n      \"name\": \"Times of India\",\n      \"type\": \"rss\",\n      \"url\": \"https://timesofindia.indiatimes.com/india\",\n      \"rssUrl\": \"https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"ht_india\",\n      \"name\": \"Hindustan Times\",\n      \"type\": \"rss\",\n      \"url\": \"https://www.hindustantimes.com/india-news\",\n      \"rssUrl\": \"https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"ie_india\",\n      \"name\": \"Indian Express\",\n      \"type\": \"rss\",\n      \"url\": \"https://indianexpress.com/section/india/\",\n      \"rssUrl\": \"https://indianexpress.com/section/india/feed/\",\n      \"enabled\": true\n    }\n  ]\n};\n\nconst enabledSources = config.sources.filter((s) => s.enabled);\n\nreturn [\n  {\n    json: {\n      ...run,\n      config: {\n        ...config,\n        enabledSourceCount: enabledSources.length,\n      },\n      phase: 'phase6-ready',\n      nextPhaseHint: 'Collect → normalize → AI → format → publish',\n    },\n  },\n];\n"
       },
       "id": "150c6749-521f-449b-8206-754ff8c1326a",
       "name": "Load Config",
@@ -160,7 +160,7 @@
           },
           "conditions": [
             {
-              "id": "cca5734f-f764-42c8-b616-fcb84ebcf94c",
+              "id": "4b7609a9-2917-44d2-a4ae-7d58d62f2870",
               "leftValue": "={{ $json.guard.proceed }}",
               "rightValue": true,
               "operator": {
@@ -209,7 +209,7 @@
           },
           "conditions": [
             {
-              "id": "d7234a60-680d-4093-a3c7-1b723016441b",
+              "id": "fbca910e-d2a0-44c4-8bd0-0ca2f3c38a88",
               "leftValue": "={{ $json.guard.proceed }}",
               "rightValue": true,
               "operator": {

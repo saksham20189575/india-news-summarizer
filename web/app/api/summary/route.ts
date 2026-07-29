@@ -57,9 +57,16 @@ export async function PUT(request: NextRequest) {
     });
   } catch (err) {
     console.error("Failed to write latest summary", err);
+    const message =
+      err instanceof Error ? err.message : "Failed to persist summary";
+    const isConfigError =
+      message.includes("Blob storage is not configured") ||
+      message.includes("No blob credentials found");
     return NextResponse.json(
-      { error: "Failed to persist summary" },
-      { status: 500 }
+      {
+        error: isConfigError ? message : "Failed to persist summary",
+      },
+      { status: isConfigError ? 503 : 500 }
     );
   }
 }
