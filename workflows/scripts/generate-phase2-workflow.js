@@ -37,7 +37,7 @@ const n8nInline = fs
   .replace(/^\/\*\*[\s\S]*?\*\/\s*/, ""); // drop file header comment
 
 const publishBase =
-  process.env.WEBSITE_PUBLISH_BASE_URL || "http://localhost:4000";
+  process.env.WEBSITE_PUBLISH_BASE_URL || "http://localhost:3000";
 
 const runtimeConfig = {
   timezone: shared.timezone,

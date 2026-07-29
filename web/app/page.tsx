@@ -11,7 +11,7 @@ export default async function HomePage() {
       return (
         <EmptyState
           title="No summary yet"
-          message="The hourly briefing has not been published. Check back soon, or seed the API locally for development."
+          message="The hourly briefing has not been published. Check back soon, or run npm run seed in web/ for local development."
           tone="empty"
         />
       );

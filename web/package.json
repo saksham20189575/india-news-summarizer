@@ -6,12 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "seed": "node scripts/seed-fixture.js",
+    "verify": "node scripts/verify-api.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "@vercel/blob": "^0.27.3",
+    "ajv": "^8.17.1",
     "next": "^14.2.25",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -20,6 +24,7 @@
     "@types/node": "^20.17.19",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "dotenv": "^16.4.7",
     "typescript": "^5.7.3"
   }
 }

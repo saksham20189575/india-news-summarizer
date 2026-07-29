@@ -1,15 +1,23 @@
 # Bharat Brief (Next.js)
 
-Reads `GET {NEXT_PUBLIC_API_BASE_URL}/api/summary` and renders the latest India news briefing.
+Bharat Brief UI plus the publish/read API — all in one Next.js app on Vercel.
 
-UI follows the Stitch design in `../stitch_bharat_brief_news_reader/` (editorial single-column reader).
+| Route | Method | Auth | Purpose |
+|-------|--------|------|---------|
+| `/health` | GET | none | Liveness |
+| `/api/summary` | GET | none | Read latest briefing (`404` if empty) |
+| `/api/summary` | PUT | `Authorization: Bearer $PUBLISH_API_KEY` | Replace latest (n8n) |
+
+**Storage:** Vercel Blob in production (`latest-summary.json`); local file fallback at `data/latest-summary.json` when `BLOB_READ_WRITE_TOKEN` is unset.
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env.local   # set PUBLISH_API_KEY
 npm install
-npm run dev   # http://localhost:3000
+npm run seed                 # optional fixture → data/latest-summary.json
+npm run dev                  # http://localhost:3000
+npm run verify               # exit-criteria checks (dev server must be running)
 ```
 
-Requires the Express API on port 4000 (or update `NEXT_PUBLIC_API_BASE_URL`).
+See [`../docs/deployment-plan.md`](../docs/deployment-plan.md) and [`../docs/phase5-notes.md`](../docs/phase5-notes.md).
 
-See [`../docs/phase5-notes.md`](../docs/phase5-notes.md).
+The legacy Express app in `api/` is kept for reference; production uses the merged Next.js routes above.

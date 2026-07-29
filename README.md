@@ -1,6 +1,6 @@
 # India News Summarizer
 
-AI-powered India news briefing: **n8n Cloud** (Gemini) collects and summarizes hourly; an **Express API** stores the latest JSON; a **Next.js** site displays it.
+AI-powered India news briefing: **n8n Cloud** (Gemini) collects and summarizes hourly; a **Next.js** app on Vercel stores and displays the latest JSON.
 
 ## Phase 0 status
 
@@ -12,8 +12,8 @@ Foundations are in place. See [`docs/phase0-decisions.md`](docs/phase0-decisions
 | Briefing JSON contract | `contracts/briefing.schema.json` |
 | Sources (RSS-first) | `config/sources.json` |
 | Fixtures | `fixtures/` |
-| Express API | `api/` |
-| Next.js frontend | `web/` |
+| Express API (legacy) | `api/` |
+| Next.js app (UI + API) | `web/` |
 | n8n exports | `workflows/` |
 | Collection parsers | `lib/collection/` |
 | Normalize / dedupe | `lib/normalize/` |
@@ -23,19 +23,19 @@ Foundations are in place. See [`docs/phase0-decisions.md`](docs/phase0-decisions
 
 - **n8n Cloud** — orchestration, credentials, hourly schedule (Phase 1+)
 - **Gemini** — categorization + summarization LLM
-- **Express** — `PUT`/`GET /api/summary` with publish API key
-- **Next.js** — public Bharat Brief UI (`web/`)
+- **Next.js** — Bharat Brief UI + `PUT`/`GET /api/summary` (`web/`)
 
 ## Phase 5 status
 
 Website API + Bharat Brief frontend are ready. See [`docs/phase5-notes.md`](docs/phase5-notes.md).
 
 ```bash
-cd api && npm run seed && npm run dev
-# other terminal
-cd web && npm run dev
-# verify API exit criteria (API running)
-cd api && npm run verify
+cd web
+cp .env.example .env.local   # set PUBLISH_API_KEY
+npm install
+npm run seed                 # optional fixture
+npm run dev                  # http://localhost:3000
+npm run verify               # exit-criteria checks (dev server running)
 ```
 
 ## Phase 4 status
@@ -50,28 +50,23 @@ node scripts/process-ai.js --mock --out fixtures/ai/briefing_intermediate.json
 
 Then import [`workflows/india-news-summarizer.json`](workflows/india-news-summarizer.json) into n8n Cloud, set Variable `GEMINI_API_KEY` (`$vars.GEMINI_API_KEY`), and run **Manual Trigger**.
 
-## Quick start (local API + web)
+## Quick start (local)
 
 ```bash
-# API
-cd api
-cp .env.example .env   # set PUBLISH_API_KEY
-npm install
-npm run dev            # http://localhost:4000
-
-# Web (another terminal)
 cd web
-cp .env.example .env.local
+cp .env.example .env.local   # set PUBLISH_API_KEY (openssl rand -hex 32)
 npm install
-npm run dev            # http://localhost:3000
+npm run dev                  # http://localhost:3000
 ```
 
-Seed a valid fixture into the API:
+Seed a valid fixture:
 
 ```bash
-cd api
-source .env 2>/dev/null || true
-curl -sS -X PUT http://localhost:4000/api/summary \
+cd web
+npm run seed
+# or via HTTP:
+source .env.local 2>/dev/null || true
+curl -sS -X PUT http://localhost:3000/api/summary \
   -H "Authorization: Bearer $PUBLISH_API_KEY" \
   -H "Content-Type: application/json" \
   --data-binary @../fixtures/briefing_valid.json
@@ -88,7 +83,7 @@ curl -sS -X PUT http://localhost:4000/api/summary \
 - [`docs/phase3-notes.md`](docs/phase3-notes.md)
 - [`docs/phase4-notes.md`](docs/phase4-notes.md)
 - [`docs/phase5-notes.md`](docs/phase5-notes.md)
-- [`docs/deployment-plan.md`](docs/deployment-plan.md) — Railway (API) + Vercel (web) + n8n publish
+- [`docs/deployment-plan.md`](docs/deployment-plan.md) — Vercel (app + API + Blob) + n8n publish
 - [`docs/edge-case.md`](docs/edge-case.md)
 - [`docs/eval.md`](docs/eval.md)
 

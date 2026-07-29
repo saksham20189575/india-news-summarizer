@@ -1,4 +1,6 @@
-# India News API (Express)
+# India News API (Express) — legacy
+
+> **Production:** API routes are merged into Next.js (`web/app/api/summary`). Deploy only `web/` on Vercel. This Express app remains for reference and side-by-side comparison.
 
 Stores and serves the latest briefing JSON for the Next.js frontend and n8n publisher (Phase 5).
 

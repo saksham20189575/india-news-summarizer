@@ -11,7 +11,7 @@
  * Optional: AI_MOCK=true (dev only)
  *
  * Production publish URL:
- *   WEBSITE_PUBLISH_BASE_URL=https://your-api.up.railway.app node ...
+ *   WEBSITE_PUBLISH_BASE_URL=https://your-app.vercel.app node ...
  */
 const fs = require("fs");
 const path = require("path");
@@ -61,7 +61,7 @@ const formatInline = fs
   .replace(/^\/\*\*[\s\S]*?\*\/\s*/, "");
 
 const publishBase =
-  process.env.WEBSITE_PUBLISH_BASE_URL || "http://localhost:4000";
+  process.env.WEBSITE_PUBLISH_BASE_URL || "http://localhost:3000";
 
 const runtimeConfig = {
   timezone: shared.timezone,

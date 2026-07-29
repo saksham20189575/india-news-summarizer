@@ -4,9 +4,9 @@ Production deployment for the India News Summarizer:
 
 | Component | Platform | Repo path | Role |
 |-----------|----------|-----------|------|
-| **Backend API** | Railway | `api/` | Store latest briefing (`PUT`/`GET /api/summary`) |
-| **Frontend** | Vercel | `web/` | Bharat Brief reader UI |
-| **Publisher** | n8n Cloud | `workflows/` | Hourly collect → AI → publish to Railway |
+| **App (UI + API)** | Vercel | `web/` | Bharat Brief reader + `PUT`/`GET /api/summary` |
+| **Briefing storage** | Vercel Blob | (attached to Vercel project) | Persists `latest-summary.json` |
+| **Publisher** | n8n Cloud | `workflows/` | Hourly collect → AI → publish to Vercel |
 
 Related docs: [`implementation-plan.md`](./implementation-plan.md) (Phases 6–8), [`phase0-decisions.md`](./phase0-decisions.md), [`phase5-notes.md`](./phase5-notes.md).
 
@@ -15,37 +15,37 @@ Related docs: [`implementation-plan.md`](./implementation-plan.md) (Phases 6–8
 ## Architecture (production)
 
 ```text
-┌─────────────────┐     PUT /api/summary      ┌──────────────────────┐
-│   n8n Cloud     │  Authorization: Bearer    │  Railway (Express)   │
-│  hourly cron    │ ────────────────────────▶ │  api/data/           │
-│  Gemini + fetch │                           │  latest-summary.json │
-└─────────────────┘                           └──────────┬───────────┘
-                                                           │
-                                              GET /api/summary (public)
-                                                           │
-                                                ┌──────────▼───────────┐
-                                                │  Vercel (Next.js)    │
-                                                │  Bharat Brief UI     │
-                                                └──────────┬───────────┘
-                                                           │
-                                                ┌──────────▼───────────┐
-                                                │  Visitors (browser)  │
-                                                └──────────────────────┘
+┌─────────────────┐     PUT /api/summary      ┌──────────────────────────────┐
+│   n8n Cloud     │  Authorization: Bearer    │  Vercel (Next.js)            │
+│  hourly cron    │ ────────────────────────▶ │  /api/summary  (route handler)│
+│  Gemini + fetch │                           │         │                    │
+└─────────────────┘                           │         ▼                    │
+                                              │  Vercel Blob                 │
+                                              │  latest-summary.json         │
+                                              │         │                    │
+                                              │  GET /api/summary (public)   │
+                                              │  Bharat Brief UI (same app)  │
+                                              └──────────┬───────────────────┘
+                                                         │
+                                              ┌──────────▼───────────┐
+                                              │  Visitors (browser)  │
+                                              └──────────────────────┘
 ```
 
 **Data contract:** `schemaVersion: 1` — [`../contracts/briefing.schema.json`](../contracts/briefing.schema.json).
 
-**Security rule:** `PUBLISH_API_KEY` lives only on **Railway** and **n8n**. Never set it on Vercel or expose it to the browser.
+**Security rule:** `PUBLISH_API_KEY` lives only on **Vercel** (server env) and **n8n**. Never expose it to the browser or prefix it with `NEXT_PUBLIC_`.
+
+**Same-origin benefit:** The UI reads the briefing via the shared store module in-process (no CORS, no separate API URL env var).
 
 ---
 
 ## Prerequisites
 
-- GitHub repo connected to Railway and Vercel
-- [Railway](https://railway.app) account (backend)
-- [Vercel](https://vercel.com) account (frontend)
+- GitHub repo connected to Vercel
+- [Vercel](https://vercel.com) account
 - [n8n Cloud](https://n8n.io/cloud) workspace (already used for the workflow)
-- Domain optional (Railway/Vercel default URLs work for v1)
+- Domain optional (Vercel default URL works for v1)
 
 Generate the publish secret once and reuse everywhere:
 
@@ -53,7 +53,7 @@ Generate the publish secret once and reuse everywhere:
 openssl rand -hex 32
 ```
 
-Save as `PUBLISH_API_KEY` — you will set the **same value** on Railway and in n8n.
+Save as `PUBLISH_API_KEY` — set the **same value** on Vercel and in n8n.
 
 ---
 
@@ -61,14 +61,12 @@ Save as `PUBLISH_API_KEY` — you will set the **same value** on Railway and in 
 
 | Variable | Where | Required | Example / notes |
 |----------|-------|----------|-----------------|
-| `PUBLISH_API_KEY` | Railway | Yes | `openssl rand -hex 32` |
-| `PUBLISH_API_KEY` | n8n (Variable or Header Auth credential) | Yes | Same value as Railway |
-| `CORS_ORIGIN` | Railway | Yes (prod) | `https://your-app.vercel.app` or custom domain |
-| `PORT` | Railway | Auto | Railway injects this; do not hardcode in code |
-| `NEXT_PUBLIC_API_BASE_URL` | Vercel | Yes | `https://your-api.up.railway.app` (no trailing slash) |
+| `PUBLISH_API_KEY` | Vercel | Yes | `openssl rand -hex 32` |
+| `PUBLISH_API_KEY` | n8n (Variable or Header Auth credential) | Yes | Same value as Vercel |
+| `BLOB_READ_WRITE_TOKEN` | Vercel | Auto (prod) | Injected when you attach a Blob store; omit locally for file fallback |
 | `GEMINI_API_KEY` | n8n Variable `$vars.GEMINI_API_KEY` | Yes | Already used in Phase 4 workflow |
 
-Local dev equivalents: `api/.env`, `web/.env.local` — see [`phase0-decisions.md`](./phase0-decisions.md).
+Local dev equivalents: `web/.env.local` — see [`phase0-decisions.md`](./phase0-decisions.md).
 
 ---
 
@@ -76,58 +74,60 @@ Local dev equivalents: `api/.env`, `web/.env.local` — see [`phase0-decisions.m
 
 Deploy in this sequence so each step has a real URL for the next:
 
-1. **Railway** — deploy API, attach volume, set env vars
+1. **Vercel** — deploy `web/`, attach Blob store, set `PUBLISH_API_KEY`
 2. **Smoke-test API** — health + optional seed PUT
-3. **Vercel** — deploy web with `NEXT_PUBLIC_API_BASE_URL`
-4. **Railway CORS** — set `CORS_ORIGIN` to the Vercel URL (or custom domain)
-5. **n8n** — point `website.publishUrl` at Railway, configure publish auth
-6. **End-to-end** — Manual Trigger in n8n → refresh Vercel site
-7. **Go-live** — activate hourly schedule (Phase 8)
+3. **n8n** — point `website.publishUrl` at Vercel, configure publish auth
+4. **End-to-end** — Manual Trigger in n8n → refresh Vercel site
+5. **Go-live** — activate hourly schedule (Phase 8)
 
 ---
 
-## 1. Railway — backend (`api/`)
+## 1. Vercel — app + API (`web/`)
 
-### Service setup
+### Project setup
 
-1. Railway → **New Project** → **Deploy from GitHub repo**
-2. Add a service for this repo
-3. **Settings → Root Directory:** `api`
-4. **Settings → Build:** Nixpacks auto-detects Node; no custom Dockerfile required for v1
-5. **Settings → Start Command:** `npm start` (runs `node src/index.js`)
-6. **Settings → Healthcheck path (optional):** `/health`
+1. Vercel → **Add New Project** → import the GitHub repo
+2. **Root Directory:** `web`
+3. **Framework Preset:** Next.js (auto-detected)
+4. **Build Command:** `npm run build` (default)
+5. **Output:** Next.js default
 
-Railway sets `PORT` automatically. The app already reads `process.env.PORT`.
+### Vercel Blob (persistent storage)
 
-### Persistent storage (important)
+Production needs durable storage for the latest briefing. Without Blob, serverless redeploys would lose in-memory/ephemeral data.
 
-v1 stores the latest briefing in **`api/data/latest-summary.json`**. Railway containers use an **ephemeral filesystem** — redeploys can wipe the file unless you attach a volume.
+1. Vercel project → **Storage** → **Create Database / Store** → **Blob**
+2. Connect the Blob store to this project
+3. Vercel injects `BLOB_READ_WRITE_TOKEN` automatically — do not commit it
 
-**Recommended for v1:**
+Local dev skips Blob when the token is unset; the API writes to `web/data/latest-summary.json` instead.
 
-1. Railway service → **Volumes** → **Add Volume**
-2. Mount path: `/app/data`
-3. This matches the API’s data directory when the service root is `api/`
+### Vercel environment variables
 
-Without a volume, the site still works: n8n republishes every hour, but a redeploy between runs may show “No summary yet” until the next successful publish.
-
-### Railway environment variables
-
-In **Variables** for the API service:
+**Production:**
 
 ```env
 PUBLISH_API_KEY=<your-64-char-hex-key>
-CORS_ORIGIN=https://your-app.vercel.app
 ```
 
-Use your final Vercel URL (or custom domain). If Vercel isn’t deployed yet, use a placeholder and update `CORS_ORIGIN` after step 3.
+`BLOB_READ_WRITE_TOKEN` is set by the Blob store attachment — no manual copy needed.
 
-Deploy and copy the public URL, e.g. `https://india-news-api-production.up.railway.app`.
+Deploy and copy the public URL, e.g. `https://bharat-brief.vercel.app`.
+
+### API routes (merged from Express)
+
+| Method | Path | Handler |
+|--------|------|---------|
+| `GET` | `/health` | `web/app/health/route.ts` |
+| `GET` | `/api/summary` | `web/app/api/summary/route.ts` |
+| `PUT` | `/api/summary` | `web/app/api/summary/route.ts` (Bearer auth) |
+
+Storage logic: `web/lib/briefing-store.ts` (Blob in prod, file locally).
 
 ### Post-deploy API checks
 
 ```bash
-export API=https://your-api.up.railway.app
+export API=https://your-app.vercel.app
 export KEY=<your-publish-key>
 
 # Liveness
@@ -153,79 +153,44 @@ curl -sS -X PUT "$API/api/summary" \
 curl -sS "$API/api/summary" | head
 ```
 
-Or run locally against production (with API up): `cd api && API_BASE=$API npm run verify` after pointing verify script — manual curls above are enough for prod.
+Or from `web/` with the app running locally: `npm run verify`.
 
 ---
 
-## 2. Vercel — frontend (`web/`)
+## 2. n8n Cloud — publish to Vercel
 
-### Project setup
-
-1. Vercel → **Add New Project** → import the same GitHub repo
-2. **Root Directory:** `web`
-3. **Framework Preset:** Next.js (auto-detected)
-4. **Build Command:** `npm run build` (default)
-5. **Output:** Next.js default
-
-### Vercel environment variables
-
-**Production** (and Preview if you want staging):
-
-```env
-NEXT_PUBLIC_API_BASE_URL=https://your-api.up.railway.app
-```
-
-Redeploy after changing this variable — it is baked in at build time for server components.
-
-### Custom domain (optional)
-
-1. Vercel → Project → **Domains** → add domain
-2. Update Railway `CORS_ORIGIN` to match, e.g. `https://bharatbrief.example.com`
-3. Redeploy / restart Railway service if CORS was wrong on first deploy
-
-### Post-deploy frontend checks
-
-- Open the Vercel URL
-- If API was seeded: categories, source links, IST “Last updated”
-- If not seeded yet: “No summary yet” (404 from API) — expected until n8n publishes
-- Confirm browser network tab only calls `GET …/api/summary` (never `PUT`, never publish key)
-
----
-
-## 3. n8n Cloud — publish to Railway
-
-n8n is the **only writer** in production (apart from manual bootstrap). It runs on n8n Cloud; no Railway/Vercel deploy needed for n8n itself.
+n8n is the **only writer** in production (apart from manual bootstrap). It runs on n8n Cloud; no separate backend deploy is needed.
 
 ### A. Regenerate workflow with production publish URL
 
 From repo root:
 
 ```bash
-WEBSITE_PUBLISH_BASE_URL=https://your-api.up.railway.app \
+WEBSITE_PUBLISH_BASE_URL=https://your-app.vercel.app \
   node workflows/scripts/generate-phase4-workflow.js
 ```
 
-This sets `config.website.publishUrl` to `https://your-api.up.railway.app/api/summary` (Phase 6 adds the HTTP publish node; until then, update **Load Config** manually in n8n if you haven’t regenerated).
+This sets `config.website.publishUrl` to `https://your-app.vercel.app/api/summary`.
 
-Re-import [`workflows/india-news-summarizer.json`](../workflows/india-news-summarizer.json) into n8n Cloud after Phase 6 publish nodes exist, or edit the **Load Config** / **HTTP Request — Publish** node URLs in the UI.
+Re-import [`workflows/india-news-summarizer.json`](../workflows/india-news-summarizer.json) into n8n Cloud after regenerating, or edit the **Load Config** / **HTTP Request — Publish** node URLs in the UI.
 
 ### B. n8n credentials & variables
 
 | Item | Where in n8n | Value |
 |------|----------------|-------|
 | Gemini | Credential + Variable | `$vars.GEMINI_API_KEY` |
-| Publish auth | **Variable** `PUBLISH_API_KEY` or **Header Auth** credential | Same as Railway `PUBLISH_API_KEY` |
+| Publish auth | **Variable** `PUBLISH_API_KEY` or **Header Auth** credential | Same as Vercel `PUBLISH_API_KEY` |
 
 **HTTP Request — Publish** (Phase 6):
 
 | Field | Value |
 |-------|--------|
 | Method | `PUT` |
-| URL | `https://your-api.up.railway.app/api/summary` |
+| URL | `https://your-app.vercel.app/api/summary` |
 | Authentication | Header Auth or raw header |
 | Header | `Authorization: Bearer <PUBLISH_API_KEY>` |
 | Body | Canonical briefing JSON from formatter Code node |
-| On failure | Retry with backoff; do **not** clear Railway storage |
+| On failure | Retry with backoff; do **not** clear stored briefing |
 
 Auth header template in repo config: [`config/sources.json`](../config/sources.json) → `website.authHeader`.
 
@@ -236,34 +201,20 @@ Auth header template in repo config: [`config/sources.json`](../config/sources.j
 - **Disable concurrent executions**
 - Execution timeout: 3300s
 
-### D. n8n → Railway connectivity
+### D. n8n → Vercel connectivity
 
-n8n Cloud calls your Railway **public HTTPS** URL. No VPN or allowlist needed for standard Railway/Vercel setups.
+n8n Cloud calls your Vercel **public HTTPS** URL. No VPN or allowlist needed.
 
 Test with **Manual Trigger** before activating the schedule:
 
 1. Run workflow
 2. Confirm publish HTTP node returns 200
-3. `curl https://your-api.up.railway.app/api/summary` shows new `generatedAt`
+3. `curl https://your-app.vercel.app/api/summary` shows new `generatedAt`
 4. Refresh Vercel site — content updates
 
 ---
 
-## 4. CORS checklist
-
-The API allows browser `GET` from the Vercel origin only.
-
-| Symptom | Fix |
-|---------|-----|
-| Browser blocked fetch from Vercel | Set Railway `CORS_ORIGIN` to exact Vercel origin (scheme + host, no path) |
-| Preview deployments fail | Add preview URL to CORS, or use a single production Vercel URL for v1 |
-| n8n PUT fails | CORS does not affect server-to-server PUT; check `PUBLISH_API_KEY` and URL |
-
-`api/src/index.js` uses `CORS_ORIGIN` for `GET`/`PUT`/`OPTIONS`. n8n `PUT` is not browser-based but CORS allows `PUT` for consistency.
-
----
-
-## 5. Production verification checklist
+## 3. Production verification checklist
 
 Use this before Phase 8 go-live:
 
@@ -273,111 +224,105 @@ Use this before Phase 8 go-live:
 | 2 | Unauthorized PUT rejected | `PUT` without Bearer → 401 |
 | 3 | Valid PUT stores briefing | n8n or curl with key → 200 |
 | 4 | GET returns latest | `GET /api/summary` → 200 + JSON |
-| 5 | Invalid PUT keeps old data | Bad schema → 400; previous file unchanged |
+| 5 | Invalid PUT keeps old data | Bad schema → 400; previous blob unchanged |
 | 6 | Frontend loads briefing | Vercel URL shows categories + links |
-| 7 | Frontend empty state | Delete/skip seed → “No summary yet” |
+| 7 | Frontend empty state | Before first publish → “No summary yet” |
 | 8 | n8n manual run updates site | `generatedAt` advances on Vercel |
 | 9 | Source links work | Click through to real news URLs |
-| 10 | Volume mounted (if used) | Redeploy API; summary survives without n8n run |
-| 11 | Publish key not in Vercel | Inspect Vercel env + browser — no `PUBLISH_*` |
+| 10 | Blob store attached | Redeploy app; summary survives without n8n run |
+| 11 | Publish key not in browser | Inspect Vercel env + network tab — no `PUBLISH_*` in client |
 | 12 | Hourly schedule ready | Cron configured, still inactive until sign-off |
 
 ---
 
-## 6. Staging vs production (optional)
+## 4. Staging vs production (optional)
 
 Simple two-environment pattern:
 
-| Env | Railway API | Vercel | n8n |
-|-----|-------------|--------|-----|
-| Staging | Separate Railway service + volume | Preview or `staging` project | Duplicate workflow or manual-only |
-| Production | Primary Railway service | Production Vercel project | Active hourly workflow |
+| Env | Vercel | Blob | n8n |
+|-----|--------|------|-----|
+| Staging | Preview or separate project | Separate Blob store | Duplicate workflow or manual-only |
+| Production | Primary Vercel project | Production Blob store | Active hourly workflow |
 
-Use different `PUBLISH_API_KEY` per environment. Point staging n8n at staging Railway URL only.
+Use different `PUBLISH_API_KEY` per environment. Point staging n8n at staging Vercel URL only.
 
 ---
 
-## 7. Operational notes
+## 5. Operational notes
 
 ### Redeploys
 
-- **Vercel:** Redeploy on `web/` changes; rebuild required when `NEXT_PUBLIC_API_BASE_URL` changes
-- **Railway:** Redeploy on `api/` changes; with volume, `latest-summary.json` persists
+- **Vercel:** Redeploy on `web/` changes; briefing persists in Blob across redeploys
 - **n8n:** Re-import workflow JSON after generator changes; update Variables if keys rotate
 
 ### Secret rotation
 
 1. Generate new `PUBLISH_API_KEY`
-2. Update Railway variable → redeploy
+2. Update Vercel variable → redeploy
 3. Update n8n Variable / credential
 4. Run manual n8n publish to confirm
 
 ### Monitoring (v1 minimal)
 
-- Railway logs: failed starts, 500 on read/write
+- Vercel function logs: failed starts, 500 on read/write
 - n8n execution history: publish HTTP failures, empty corpus, AI guard paths
 - Manual spot-check: Vercel “Last updated” advances each hour after go-live
 
-### When file storage is not enough
+### Legacy Express API (`api/`)
 
-Phase 9 / scale-up options (not required for v1):
-
-- Railway **Postgres** or external KV (Upstash Redis) for `latest-summary`
-- CDN cache on `GET /api/summary` (short TTL)
-- Summary history (last N hours)
+The standalone Express app in `api/` is no longer used in production. It remains in the repo for reference and local comparison. All production traffic goes through `web/app/api/summary`.
 
 ---
 
-## 8. Quick reference — URLs to wire
+## 6. Quick reference — URLs to wire
 
 After deploy, fill this in for your team:
 
 ```text
-Railway API:     https://________________.up.railway.app
-Vercel site:     https://________________.vercel.app
-n8n publish URL: https://________________.up.railway.app/api/summary
-CORS_ORIGIN:     https://________________.vercel.app
-NEXT_PUBLIC_API_BASE_URL (Vercel): same as Railway API base (no /api/summary)
+Vercel site + API:  https://________________.vercel.app
+n8n publish URL:    https://________________.vercel.app/api/summary
+Health check:       https://________________.vercel.app/health
 ```
 
 **n8n generator one-liner:**
 
 ```bash
-WEBSITE_PUBLISH_BASE_URL=https://YOUR-RAILWAY-API.up.railway.app \
+WEBSITE_PUBLISH_BASE_URL=https://YOUR-APP.vercel.app \
   node workflows/scripts/generate-phase4-workflow.js
 ```
 
 ---
 
-## 9. Related implementation phases
+## 7. Related implementation phases
 
 | Phase | Deployment tie-in |
 |-------|---------------------|
-| **Phase 5** | API + UI done — this doc deploys them |
-| **Phase 6** | Wire n8n formatter + HTTP publish to Railway URL |
-| **Phase 7** | Publish retries; failed runs must not wipe Railway file |
+| **Phase 5** | API + UI done — merged into `web/` |
+| **Phase 6** | Wire n8n formatter + HTTP publish to Vercel URL |
+| **Phase 7** | Publish retries; failed runs must not wipe stored briefing |
 | **Phase 8** | Activate cron; confirm hourly Vercel refresh |
 
 ---
 
-## 10. Troubleshooting
+## 8. Troubleshooting
 
 | Problem | Likely cause | Action |
 |---------|--------------|--------|
-| Vercel shows “Could not reach the summary API” | Wrong `NEXT_PUBLIC_API_BASE_URL` or API down | Fix Vercel env; rebuild; check Railway deploy |
-| CORS error in browser | `CORS_ORIGIN` mismatch | Set exact Vercel origin on Railway |
-| n8n publish 401 | Key mismatch | Align n8n and Railway `PUBLISH_API_KEY` |
+| Site shows “Could not load the latest briefing” | Blob misconfigured or function error | Check Vercel logs; confirm Blob store attached |
+| n8n publish 401 | Key mismatch | Align n8n and Vercel `PUBLISH_API_KEY` |
 | n8n publish 400 | Invalid briefing JSON | Fix Phase 6 formatter; check schema |
-| Site empty after Railway redeploy | No volume + no publish yet | Add volume or wait for n8n / seed once |
+| n8n publish 500 | Missing `PUBLISH_API_KEY` on Vercel | Set env var and redeploy |
+| Site empty after redeploy | Blob store not attached | Add Blob store; republish from n8n |
 | 404 on GET forever | n8n never succeeded | Manual Trigger; check publish node |
 | Gemini errors in n8n | Missing `$vars.GEMINI_API_KEY` | Set n8n Variable |
+| Local dev empty after restart | File mode — run `npm run seed` | Seed or PUT with publish key |
 
 ---
 
 ## Definition of done (deployed v1)
 
-1. Railway serves `GET`/`PUT /api/summary` with auth and validation
-2. Vercel displays the latest briefing from Railway
-3. n8n manual run publishes to Railway and updates the live site
+1. Vercel serves `GET`/`PUT /api/summary` with auth and validation
+2. Vercel displays the latest briefing from Blob storage
+3. n8n manual run publishes to Vercel and updates the live site
 4. Hourly n8n schedule can be activated (Phase 8) with confidence
-5. Secrets are scoped correctly (publish key never on Vercel)
+5. Secrets are scoped correctly (publish key never in browser)
