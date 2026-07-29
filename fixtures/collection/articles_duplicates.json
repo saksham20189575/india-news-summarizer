@@ -1,0 +1,71 @@
+{
+  "description": "Fixture for exact URL + near-title duplicate collapse and cap",
+  "sources": [
+    { "id": "india_today", "name": "India Today", "enabled": true },
+    { "id": "ndtv_india", "name": "NDTV", "enabled": true },
+    { "id": "ie_india", "name": "Indian Express", "enabled": true }
+  ],
+  "maxArticlesTotal": 2,
+  "sourceStatuses": [
+    { "sourceId": "india_today", "sourceName": "India Today", "status": "success", "articleCount": 2 },
+    { "sourceId": "ndtv_india", "sourceName": "NDTV", "status": "success", "articleCount": 2 },
+    { "sourceId": "ie_india", "sourceName": "Indian Express", "status": "success", "articleCount": 1 }
+  ],
+  "articles": [
+    {
+      "id": "dup-url-1",
+      "sourceId": "india_today",
+      "sourceName": "India Today",
+      "title": "Cabinet reshuffle: Joshi takes education charge",
+      "url": "https://www.indiatoday.in/story/joshi?utm_source=rss",
+      "publishedAt": "2026-07-26T10:00:00+05:30",
+      "snippet": "Short",
+      "content": "Short",
+      "fetchedAt": "2026-07-26T11:00:00.000Z"
+    },
+    {
+      "id": "dup-url-2",
+      "sourceId": "ndtv_india",
+      "sourceName": "NDTV",
+      "title": "Cabinet reshuffle: Joshi takes education charge",
+      "url": "https://www.indiatoday.in/story/joshi",
+      "publishedAt": "2026-07-26T10:05:00+05:30",
+      "snippet": "Longer snippet with more detail about the swearing in ceremony today",
+      "content": "Longer snippet with more detail about the swearing in ceremony today",
+      "fetchedAt": "2026-07-26T11:00:00.000Z"
+    },
+    {
+      "id": "near-title-1",
+      "sourceId": "ie_india",
+      "sourceName": "Indian Express",
+      "title": "Cabinet reshuffle Joshi takes education charge after Pradhan resignation",
+      "url": "https://indianexpress.com/article/joshi-education/",
+      "publishedAt": "2026-07-26T09:50:00+05:30",
+      "snippet": "IE coverage of the education portfolio change",
+      "content": "IE coverage of the education portfolio change",
+      "fetchedAt": "2026-07-26T11:00:00.000Z"
+    },
+    {
+      "id": "distinct-1",
+      "sourceId": "ndtv_india",
+      "sourceName": "NDTV",
+      "title": "Amarnath Yatra resumes after landslide clears highway in Kashmir",
+      "url": "https://www.ndtv.com/india/amarnath-yatra-resumes",
+      "publishedAt": "2026-07-26T08:00:00+05:30",
+      "snippet": "Pilgrims move via Baltal",
+      "content": "Pilgrims move via Baltal",
+      "fetchedAt": "2026-07-26T11:00:00.000Z"
+    },
+    {
+      "id": "old-1",
+      "sourceId": "india_today",
+      "sourceName": "India Today",
+      "title": "Old story from yesterday should be capped out when limit is tiny",
+      "url": "https://www.indiatoday.in/story/old",
+      "publishedAt": "2026-07-20T08:00:00+05:30",
+      "snippet": "Old",
+      "content": "Old",
+      "fetchedAt": "2026-07-26T11:00:00.000Z"
+    }
+  ]
+}

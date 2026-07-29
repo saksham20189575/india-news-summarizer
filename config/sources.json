@@ -1,0 +1,87 @@
+{
+  "timezone": "Asia/Kolkata",
+  "maxArticlesPerSource": 2,
+  "maxArticlesTotal": 10,
+  "llm": {
+    "provider": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "thinkingLevel": "minimal",
+    "categorizeBatchSize": 10,
+    "maxContentChars": 500,
+    "minConfidence": 0.35,
+    "maxRetries": 1,
+    "timeoutMs": 60000,
+    "maxRequestsPerRun": 16,
+    "minRequestGapMs": 4200,
+    "rateLimits": {
+      "requestsPerMinute": 15,
+      "tokensPerMinute": 250000,
+      "requestsPerDay": 500
+    },
+    "notes": "Gemini 3.5 Flash Lite. n8n: set Variable GEMINI_API_KEY ($vars.GEMINI_API_KEY). Client enforces ~4.2s gap (15 RPM), TPM estimate, 16 req/run (~384/day at hourly) under 500 RPD."
+  },
+  "website": {
+    "publishPath": "/api/summary",
+    "publishMethod": "PUT",
+    "authHeader": "Authorization: Bearer <PUBLISH_API_KEY>"
+  },
+  "categories": [
+    "Politics",
+    "Sports",
+    "Business",
+    "Technology",
+    "Entertainment",
+    "Health",
+    "Education",
+    "Crime",
+    "Weather",
+    "World"
+  ],
+  "sources": [
+    {
+      "id": "india_today",
+      "name": "India Today",
+      "type": "rss",
+      "url": "https://www.indiatoday.in/",
+      "rssUrl": "https://www.indiatoday.in/rss/1206578",
+      "enabled": true,
+      "notes": "India section RSS (HTTP 200 verified in Phase 0). HTML fallback: homepage."
+    },
+    {
+      "id": "ndtv_india",
+      "name": "NDTV",
+      "type": "rss",
+      "url": "https://www.ndtv.com/india",
+      "rssUrl": "https://feeds.feedburner.com/ndtvnews-india-news",
+      "enabled": true,
+      "notes": "India news Feedburner RSS (HTTP 200). Alternate: https://feeds.feedburner.com/ndtv/Lsgd. Directory: https://www.ndtv.com/rss"
+    },
+    {
+      "id": "toi_india",
+      "name": "Times of India",
+      "type": "rss",
+      "url": "https://timesofindia.indiatimes.com/india",
+      "rssUrl": "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms",
+      "enabled": true,
+      "notes": "India News RSS (HTTP 200). Note: 296589292.cms is World, not India. Index: https://timesofindia.indiatimes.com/rss.cms"
+    },
+    {
+      "id": "ht_india",
+      "name": "Hindustan Times",
+      "type": "rss",
+      "url": "https://www.hindustantimes.com/india-news",
+      "rssUrl": "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml",
+      "enabled": true,
+      "notes": "India News RSS from HT feed list (HTTP 200). Index: https://www.hindustantimes.com/rss"
+    },
+    {
+      "id": "ie_india",
+      "name": "Indian Express",
+      "type": "rss",
+      "url": "https://indianexpress.com/section/india/",
+      "rssUrl": "https://indianexpress.com/section/india/feed/",
+      "enabled": true,
+      "notes": "Section Atom/RSS feed (HTTP 200). Prefer over HTML scrape."
+    }
+  ]
+}

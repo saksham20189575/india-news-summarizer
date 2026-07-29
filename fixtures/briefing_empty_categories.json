@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "runId": "phase0-fixture-empty-categories",
+  "generatedAt": "2026-07-26T11:00:00+05:30",
+  "timezone": "Asia/Kolkata",
+  "title": "India News Summary",
+  "status": "ok",
+  "meta": {
+    "sourcesConfigured": 5,
+    "sourcesSucceeded": 0,
+    "articleCount": 0,
+    "failedSources": []
+  },
+  "categories": []
+}

@@ -1,0 +1,510 @@
+{
+  "name": "India News Summarizer",
+  "active": false,
+  "notes": "Phase 6/7: Collect → normalize → AI → format → publish. Variables: GEMINI_API_KEY, PUBLISH_API_KEY ($vars). Keep inactive until Phase 8. TZ Asia/Kolkata.",
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Kolkata",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3300
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "phase": 6,
+    "description": "Hourly India news summarizer — format canonical JSON and publish to Railway API (Phase 7 retries)"
+  },
+  "pinsData": {},
+  "versionId": "0d40ffd9-64bb-4616-8b3b-e59947f88207",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "e52e1e13-c24f-4f58-91e4-72d2fb35aed1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "3b11ee40-d970-46a5-a02b-76f760751d3c",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        520
+      ],
+      "notes": "Every hour at minute 0. Uses workflow timezone Asia/Kolkata. Keep workflow inactive until Phase 8."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "47e0cb9f-da13-4ee8-ade0-f3355671bfba",
+              "name": "mode",
+              "value": "manual",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6d610e98-51d4-4513-a344-63a1e28ab9d1",
+      "name": "Set Mode Manual",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "173e897f-2f8c-4877-8e39-06ef00868b71",
+              "name": "mode",
+              "value": "scheduled",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "63098cad-5dd7-43ea-a95b-5d16af516e69",
+      "name": "Set Mode Scheduled",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Phase 1 — Build run metadata for every execution\nconst input = $input.first().json || {};\nconst mode = input.mode === 'scheduled' ? 'scheduled' : 'manual';\n\nconst now = new Date();\nconst timezone = 'Asia/Kolkata';\n\nconst runDate = new Intl.DateTimeFormat('en-CA', {\n  timeZone: timezone,\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit',\n}).format(now);\n\nconst triggeredAt = now.toISOString();\nconst runId = typeof crypto !== 'undefined' && crypto.randomUUID\n  ? crypto.randomUUID()\n  : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {\n      const r = (Math.random() * 16) | 0;\n      const v = c === 'x' ? r : (r & 0x3) | 0x8;\n      return v.toString(16);\n    });\n\nreturn [\n  {\n    json: {\n      runId,\n      runDate,\n      triggeredAt,\n      mode,\n      timezone,\n    },\n  },\n];\n"
+      },
+      "id": "c0708205-ceac-49b4-b4ec-22b06445917b",
+      "name": "Build Run Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Phase 1 — Central config (generated from config/sources.json)\n// Re-run: node workflows/scripts/generate-phase4-workflow.js\nconst run = $input.first().json;\n\nconst config = {\n  \"timezone\": \"Asia/Kolkata\",\n  \"maxArticlesPerSource\": 2,\n  \"maxArticlesTotal\": 10,\n  \"llm\": {\n    \"provider\": \"gemini\",\n    \"model\": \"gemini-3.5-flash-lite\",\n    \"thinkingLevel\": \"minimal\",\n    \"categorizeBatchSize\": 10,\n    \"maxContentChars\": 500,\n    \"minConfidence\": 0.35,\n    \"maxRetries\": 1,\n    \"timeoutMs\": 60000,\n    \"maxRequestsPerRun\": 16,\n    \"minRequestGapMs\": 4200,\n    \"rateLimits\": {\n      \"requestsPerMinute\": 15,\n      \"tokensPerMinute\": 250000,\n      \"requestsPerDay\": 500\n    },\n    \"notes\": \"Gemini 3.5 Flash Lite. n8n: set Variable GEMINI_API_KEY ($vars.GEMINI_API_KEY). Client enforces ~4.2s gap (15 RPM), TPM estimate, 16 req/run (~384/day at hourly) under 500 RPD.\"\n  },\n  \"website\": {\n    \"publishUrl\": \"http://localhost:4000/api/summary\",\n    \"publishMethod\": \"PUT\",\n    \"authHeaderTemplate\": \"Authorization: Bearer <PUBLISH_API_KEY>\",\n    \"apiKeyCredentialHint\": \"Store PUBLISH_API_KEY in n8n credentials / Header Auth; do not hardcode.\"\n  },\n  \"categories\": [\n    \"Politics\",\n    \"Sports\",\n    \"Business\",\n    \"Technology\",\n    \"Entertainment\",\n    \"Health\",\n    \"Education\",\n    \"Crime\",\n    \"Weather\",\n    \"World\"\n  ],\n  \"sources\": [\n    {\n      \"id\": \"india_today\",\n      \"name\": \"India Today\",\n      \"type\": \"rss\",\n      \"url\": \"https://www.indiatoday.in/\",\n      \"rssUrl\": \"https://www.indiatoday.in/rss/1206578\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"ndtv_india\",\n      \"name\": \"NDTV\",\n      \"type\": \"rss\",\n      \"url\": \"https://www.ndtv.com/india\",\n      \"rssUrl\": \"https://feeds.feedburner.com/ndtvnews-india-news\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"toi_india\",\n      \"name\": \"Times of India\",\n      \"type\": \"rss\",\n      \"url\": \"https://timesofindia.indiatimes.com/india\",\n      \"rssUrl\": \"https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"ht_india\",\n      \"name\": \"Hindustan Times\",\n      \"type\": \"rss\",\n      \"url\": \"https://www.hindustantimes.com/india-news\",\n      \"rssUrl\": \"https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml\",\n      \"enabled\": true\n    },\n    {\n      \"id\": \"ie_india\",\n      \"name\": \"Indian Express\",\n      \"type\": \"rss\",\n      \"url\": \"https://indianexpress.com/section/india/\",\n      \"rssUrl\": \"https://indianexpress.com/section/india/feed/\",\n      \"enabled\": true\n    }\n  ]\n};\n\nconst enabledSources = config.sources.filter((s) => s.enabled);\n\nreturn [\n  {\n    json: {\n      ...run,\n      config: {\n        ...config,\n        enabledSourceCount: enabledSources.length,\n      },\n      phase: 'phase6-ready',\n      nextPhaseHint: 'Collect → normalize → AI → format → publish',\n    },\n  },\n];\n"
+      },
+      "id": "150c6749-521f-449b-8206-754ff8c1326a",
+      "name": "Load Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Phase 2 — Collect from every enabled source in one node\n// (avoids HTTP fan-out pairedItem bugs that can mis-label all items as the first source)\nfunction decodeEntities(text) {\n  if (!text) return \"\";\n  return String(text)\n    .replace(/&nbsp;/gi, \" \")\n    .replace(/&amp;/gi, \"&\")\n    .replace(/&lt;/gi, \"<\")\n    .replace(/&gt;/gi, \">\")\n    .replace(/&quot;/gi, '\"')\n    .replace(/&#39;/g, \"'\")\n    .replace(/&apos;/gi, \"'\")\n    .replace(/&#x([0-9a-f]+);/gi, (_, hex) =>\n      String.fromCodePoint(parseInt(hex, 16))\n    )\n    .replace(/&#(\\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)));\n}\n\nfunction stripHtml(html) {\n  if (!html) return \"\";\n  return decodeEntities(\n    String(html)\n      .replace(/<script[\\s\\S]*?<\\/script>/gi, \" \")\n      .replace(/<style[\\s\\S]*?<\\/style>/gi, \" \")\n      .replace(/<[^>]+>/g, \" \")\n      .replace(/\\s+/g, \" \")\n      .trim()\n  );\n}\n\nfunction truncate(text, maxLen) {\n  const s = String(text || \"\").trim();\n  if (!maxLen || s.length <= maxLen) return s;\n  return s.slice(0, maxLen - 1).trimEnd() + \"…\";\n}\n\nfunction canonicalizeUrl(rawUrl) {\n  if (!rawUrl) return \"\";\n  let s = String(rawUrl).trim().replace(/\\s+/g, \"\");\n  if (!s) return \"\";\n  try {\n    const u = new URL(s);\n    const drop = [];\n    for (const key of u.searchParams.keys()) {\n      if (/^utm_/i.test(key) || key === \"fbclid\" || key === \"gclid\") drop.push(key);\n    }\n    drop.forEach((k) => u.searchParams.delete(k));\n    if (u.hash && /publisher=/i.test(u.hash)) u.hash = \"\";\n    u.hostname = u.hostname.toLowerCase();\n    let out = u.toString();\n    if (out.endsWith(\"/\") && u.pathname !== \"/\" && !u.search && !u.hash) {\n      out = out.slice(0, -1);\n    }\n    return out;\n  } catch {\n    return s;\n  }\n}\n\nfunction hashArticleId(sourceId, canonicalUrl) {\n  const payload = `${sourceId}|${canonicalUrl}`;\n  if (typeof crypto !== \"undefined\" && crypto.createHash) {\n    return crypto.createHash(\"sha256\").update(payload).digest(\"hex\").slice(0, 24);\n  }\n  // Fallback FNV-1a 64-bit hex (rare — n8n Node has crypto)\n  let h = 0xcbf29ce484222325n;\n  const data = Buffer.from(payload);\n  for (let i = 0; i < data.length; i++) {\n    h ^= BigInt(data[i]);\n    h = (h * 0x100000001b3n) & 0xffffffffffffffffn;\n  }\n  return h.toString(16).padStart(16, \"0\");\n}\n\nfunction unwrapCdata(value) {\n  if (!value) return \"\";\n  const s = String(value).trim();\n  const m = s.match(/^<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>$/i);\n  return m ? m[1].trim() : s;\n}\n\nfunction tagContent(block, tagNames) {\n  const names = Array.isArray(tagNames) ? tagNames : [tagNames];\n  for (const name of names) {\n    const re = new RegExp(`<${name}(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/${name}>`, \"i\");\n    const m = block.match(re);\n    if (m) return unwrapCdata(m[1]);\n  }\n  return \"\";\n}\n\nfunction selfClosingAttr(block, tagName, attrName) {\n  const re = new RegExp(\n    `<${tagName}\\\\b[^>]*\\\\b${attrName}=[\"']([^\"']+)[\"'][^>]*\\\\/?>`,\n    \"i\"\n  );\n  const m = block.match(re);\n  return m ? m[1].trim() : \"\";\n}\n\nfunction parsePublishedAt(raw) {\n  if (!raw) return null;\n  const cleaned = unwrapCdata(raw).trim();\n  if (!cleaned) return null;\n  const d = new Date(cleaned);\n  if (Number.isNaN(d.getTime())) return null;\n  return d.toISOString();\n}\n\nfunction parseFeed(xml) {\n  const text = String(xml || \"\");\n  const chunks = [];\n  let m;\n  const itemRe = /<item\\b[^>]*>([\\s\\S]*?)<\\/item>/gi;\n  while ((m = itemRe.exec(text)) !== null) chunks.push({ kind: \"rss\", body: m[1] });\n  if (chunks.length === 0) {\n    const entryRe = /<entry\\b[^>]*>([\\s\\S]*?)<\\/entry>/gi;\n    while ((m = entryRe.exec(text)) !== null) chunks.push({ kind: \"atom\", body: m[1] });\n  }\n\n  return chunks.map(({ kind, body }) => {\n    let title = stripHtml(tagContent(body, \"title\"));\n    let link = \"\";\n    let publishedAt = null;\n    let snippet = \"\";\n    let content = \"\";\n\n    if (kind === \"atom\") {\n      link =\n        selfClosingAttr(body, \"link\", \"href\") ||\n        tagContent(body, \"link\") ||\n        tagContent(body, \"id\");\n      publishedAt = parsePublishedAt(tagContent(body, [\"published\", \"updated\"]));\n      snippet = stripHtml(tagContent(body, [\"summary\", \"content\"]) || \"\");\n      content = truncate(snippet, 2000);\n    } else {\n      link =\n        tagContent(body, \"link\") ||\n        selfClosingAttr(body, \"link\", \"href\") ||\n        tagContent(body, \"guid\");\n      publishedAt = parsePublishedAt(tagContent(body, \"pubDate\"));\n      const description = tagContent(body, \"description\");\n      const encoded = tagContent(body, [\"content:encoded\", \"content\"]);\n      snippet = stripHtml(description || encoded || \"\");\n      content = truncate(stripHtml(encoded || description || \"\"), 2000);\n    }\n\n    return {\n      title: decodeEntities(title).trim(),\n      url: unwrapCdata(link).trim(),\n      publishedAt,\n      snippet: truncate(snippet, 500),\n      content,\n    };\n  });\n}\n\nfunction parseHtmlListing(html, baseUrl) {\n  const text = String(html || \"\");\n  const results = [];\n  const seen = new Set();\n  const re = /<a\\b[^>]*href=[\"']([^\"'#]+)[\"'][^>]*>([\\s\\S]*?)<\\/a>/gi;\n  let m;\n  while ((m = re.exec(text)) !== null) {\n    let href = m[1].trim();\n    const title = stripHtml(m[2]);\n    if (!title || title.length < 25) continue;\n    try {\n      href = new URL(href, baseUrl).toString();\n    } catch {\n      continue;\n    }\n    if (!/^https?:\\/\\//i.test(href)) continue;\n    if (seen.has(href)) continue;\n    seen.add(href);\n    results.push({ title, url: href, publishedAt: null, snippet: \"\", content: \"\" });\n    if (results.length >= 40) break;\n  }\n  return results;\n}\n\nfunction toArticle(source, raw, fetchedAt) {\n  const title = (raw.title || \"\").trim();\n  const url = canonicalizeUrl(raw.url);\n  if (!title || !url || !/^https?:\\/\\//i.test(url)) return null;\n  // Some feeds (e.g. Indian Express) ship empty descriptions — fall back to title.\n  const snippet = truncate(raw.snippet || title, 500);\n  const content = truncate(raw.content || snippet, 2000);\n  return {\n    id: hashArticleId(source.id, url),\n    sourceId: source.id,\n    sourceName: source.name,\n    title,\n    url,\n    publishedAt: raw.publishedAt || null,\n    snippet,\n    content,\n    fetchedAt,\n  };\n}\n\nfunction extractArticlesFromFetch(source, opts) {\n  const fetchedAt = opts.fetchedAt || new Date().toISOString();\n  const max = Math.max(1, Number(opts.maxArticlesPerSource) || 8);\n  const statusCode = opts.statusCode == null ? null : opts.statusCode;\n  const errorMsg = opts.error ? String(opts.error) : null;\n  const body = opts.body == null ? \"\" : String(opts.body);\n\n  const baseStatus = {\n    sourceId: source.id,\n    sourceName: source.name,\n    fetchMode: source.rssUrl ? \"rss\" : \"html\",\n    fetchUrl: source.rssUrl || source.url,\n    statusCode,\n  };\n\n  if (errorMsg) {\n    return {\n      articles: [],\n      sourceStatus: {\n        ...baseStatus,\n        status: \"failed\",\n        error: errorMsg,\n        articleCount: 0,\n      },\n    };\n  }\n\n  if (statusCode != null && (statusCode < 200 || statusCode >= 300)) {\n    return {\n      articles: [],\n      sourceStatus: {\n        ...baseStatus,\n        status: \"failed\",\n        error: `HTTP ${statusCode}`,\n        articleCount: 0,\n      },\n    };\n  }\n\n  if (!body.trim()) {\n    return {\n      articles: [],\n      sourceStatus: {\n        ...baseStatus,\n        status: \"failed\",\n        error: \"Empty response body\",\n        articleCount: 0,\n      },\n    };\n  }\n\n  let rawItems;\n  try {\n    if (source.rssUrl) {\n      rawItems = parseFeed(body);\n      if (rawItems.length === 0) {\n        rawItems = parseHtmlListing(body, source.url || source.rssUrl);\n        baseStatus.fetchMode = rawItems.length ? \"html-fallback\" : \"rss\";\n      }\n    } else {\n      rawItems = parseHtmlListing(body, source.url);\n    }\n  } catch (err) {\n    return {\n      articles: [],\n      sourceStatus: {\n        ...baseStatus,\n        status: \"failed\",\n        error: `Parse error: ${err && err.message ? err.message : String(err)}`,\n        articleCount: 0,\n      },\n    };\n  }\n\n  const articles = [];\n  const seenIds = new Set();\n  for (const raw of rawItems) {\n    const article = toArticle(source, raw, fetchedAt);\n    if (!article) continue;\n    if (seenIds.has(article.id)) continue;\n    seenIds.add(article.id);\n    articles.push(article);\n    if (articles.length >= max) break;\n  }\n\n  if (articles.length === 0) {\n    return {\n      articles: [],\n      sourceStatus: {\n        ...baseStatus,\n        status: \"failed\",\n        error: \"No articles extracted\",\n        articleCount: 0,\n      },\n    };\n  }\n\n  return {\n    articles,\n    sourceStatus: {\n      ...baseStatus,\n      status: \"success\",\n      error: null,\n      articleCount: articles.length,\n    },\n  };\n}\n\n\nconst ctx = $input.first().json || {};\nconst config = ctx.config || {};\nconst sources = (config.sources || []).filter((s) => s.enabled);\nconst maxArticlesPerSource = config.maxArticlesPerSource || 2;\nconst fetchedAt = new Date().toISOString();\nconst delayMs = 200;\n\nconst articles = [];\nconst sourceStatuses = [];\n\nasync function fetchOne(url) {\n  const maxAttempts = 3;\n  const backoffMs = [1000, 2500];\n\n  for (let attempt = 0; attempt < maxAttempts; attempt++) {\n    try {\n      const res = await this.helpers.httpRequest({\n        method: 'GET',\n        url,\n        headers: {\n          'User-Agent':\n            'Mozilla/5.0 (compatible; IndiaNewsSummarizer/0.7; +n8n)',\n          Accept:\n            'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html;q=0.9, */*;q=0.8',\n        },\n        returnFullResponse: true,\n        timeout: 20000,\n        ignoreHttpStatusErrors: true,\n      });\n\n      const statusCode = res.statusCode ?? res.status ?? null;\n      let body = res.body ?? res.data ?? '';\n      if (body && typeof body === 'object') {\n        body = typeof body === 'string' ? body : JSON.stringify(body);\n      }\n      body = body == null ? '' : String(body);\n\n      const retriable =\n        statusCode == null || statusCode === 408 || statusCode === 429 || statusCode >= 500;\n      if (retriable && attempt < maxAttempts - 1) {\n        await new Promise((r) => setTimeout(r, backoffMs[attempt] || 2500));\n        continue;\n      }\n\n      return { statusCode, body, error: null, attempts: attempt + 1 };\n    } catch (err) {\n      if (attempt < maxAttempts - 1) {\n        await new Promise((r) => setTimeout(r, backoffMs[attempt] || 2500));\n        continue;\n      }\n      return {\n        statusCode: null,\n        body: '',\n        error: (err && err.message) || String(err),\n        attempts: attempt + 1,\n      };\n    }\n  }\n\n  return {\n    statusCode: null,\n    body: '',\n    error: 'fetch_exhausted',\n    attempts: maxAttempts,\n  };\n}\n\nfor (let i = 0; i < sources.length; i++) {\n  const source = sources[i];\n  const fetchUrl = source.rssUrl || source.url;\n  const fetched = await fetchOne.call(this, fetchUrl);\n  const { articles: batch, sourceStatus } = extractArticlesFromFetch(source, {\n    body: fetched.body,\n    statusCode: fetched.statusCode,\n    error: fetched.error,\n    maxArticlesPerSource,\n    fetchedAt,\n  });\n  articles.push(...batch);\n  sourceStatuses.push(sourceStatus);\n\n  if (delayMs > 0 && i < sources.length - 1) {\n    await new Promise((r) => setTimeout(r, delayMs));\n  }\n}\n\nconst sourcesConfigured = (config.sources || []).length;\nconst sourcesEnabled = sources.length;\nconst sourcesSucceeded = sourceStatuses.filter((s) => s.status === 'success').length;\nconst sourcesFailed = sourceStatuses.filter((s) => s.status === 'failed').length;\nconst failedSources = sourceStatuses\n  .filter((s) => s.status === 'failed')\n  .map((s) => ({\n    sourceId: s.sourceId,\n    sourceName: s.sourceName,\n    error: s.error,\n  }));\n\nreturn [\n  {\n    json: {\n      runId: ctx.runId,\n      runDate: ctx.runDate,\n      triggeredAt: ctx.triggeredAt,\n      mode: ctx.mode,\n      timezone: ctx.timezone,\n      config,\n      articles,\n      sourceStatuses,\n      collection: {\n        sourcesConfigured,\n        sourcesEnabled,\n        sourcesSucceeded,\n        sourcesFailed,\n        articleCount: articles.length,\n        failedSources,\n        maxArticlesPerSource,\n      },\n      phase: 'phase2-collection',\n      nextPhaseHint: 'Phase 3 normalize / dedupe / empty-run guard',\n    },\n  },\n];\n"
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Collect All Sources",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        400
+      ],
+      "notes": "Fetch each enabled RSS/HTML source via helpers.httpRequest (isolated). Caps maxArticlesPerSource."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Phase 3 — Normalize, exact+near dedupe, cap, emit corpus stats + guard\nfunction decodeEntities(text) {\n  if (!text) return \"\";\n  return String(text)\n    .replace(/&nbsp;/gi, \" \")\n    .replace(/&amp;/gi, \"&\")\n    .replace(/&lt;/gi, \"<\")\n    .replace(/&gt;/gi, \">\")\n    .replace(/&quot;/gi, '\"')\n    .replace(/&#39;/g, \"'\")\n    .replace(/&apos;/gi, \"'\")\n    .replace(/&#x([0-9a-f]+);/gi, (_, hex) =>\n      String.fromCodePoint(parseInt(hex, 16))\n    )\n    .replace(/&#(\\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)));\n}\n\nfunction cleanText(value) {\n  return decodeEntities(String(value || \"\"))\n    .replace(/\\s+/g, \" \")\n    .trim();\n}\n\nconst TRACKING_PARAM =\n  /^(utm_|fbclid$|gclid$|mc_eid$|mc_cid$|_ga$|igshid$|spm$|scm$|ncid$|cmpid$|ocid$)/i;\n\nfunction canonicalizeUrl(rawUrl) {\n  if (!rawUrl) return \"\";\n  let s = String(rawUrl).trim().replace(/\\s+/g, \"\");\n  if (!s) return \"\";\n  try {\n    const u = new URL(s);\n    const drop = [];\n    for (const key of u.searchParams.keys()) {\n      if (TRACKING_PARAM.test(key)) drop.push(key);\n    }\n    drop.forEach((k) => u.searchParams.delete(k));\n    if (u.hash && (/publisher=/i.test(u.hash) || /^#?utm_/i.test(u.hash))) {\n      u.hash = \"\";\n    }\n    u.hostname = u.hostname.toLowerCase();\n    if (\n      u.protocol === \"http:\" &&\n      u.hostname !== \"localhost\" &&\n      u.hostname !== \"127.0.0.1\"\n    ) {\n      u.protocol = \"https:\";\n    }\n    let out = u.toString();\n    if (out.endsWith(\"/\") && u.pathname !== \"/\" && !u.search && !u.hash) {\n      out = out.slice(0, -1);\n    }\n    return out;\n  } catch {\n    return s;\n  }\n}\n\nfunction toAsiaKolkataIso(input) {\n  if (input == null || input === \"\") return null;\n  const d = input instanceof Date ? input : new Date(input);\n  if (Number.isNaN(d.getTime())) return null;\n  const parts = Object.fromEntries(\n    new Intl.DateTimeFormat(\"en-CA\", {\n      timeZone: \"Asia/Kolkata\",\n      year: \"numeric\",\n      month: \"2-digit\",\n      day: \"2-digit\",\n      hour: \"2-digit\",\n      minute: \"2-digit\",\n      second: \"2-digit\",\n      hourCycle: \"h23\",\n    })\n      .formatToParts(d)\n      .filter((p) => p.type !== \"literal\")\n      .map((p) => [p.type, p.value])\n  );\n  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}+05:30`;\n}\n\nconst STOPWORDS = new Set([\n  \"a\", \"an\", \"the\", \"and\", \"or\", \"of\", \"to\", \"in\", \"on\", \"for\", \"with\", \"at\",\n  \"by\", \"from\", \"as\", \"is\", \"are\", \"was\", \"were\", \"be\", \"been\", \"after\",\n  \"before\", \"over\", \"under\", \"into\", \"about\", \"against\", \"between\", \"through\",\n  \"during\", \"without\", \"within\", \"via\", \"vs\", \"vs.\", \"says\", \"said\", \"amid\",\n  \"its\", \"his\", \"her\", \"their\", \"new\", \"latest\", \"live\", \"update\", \"updates\",\n  \"breaking\",\n]);\n\nfunction normalizeTitle(title) {\n  return String(title || \"\")\n    .toLowerCase()\n    .replace(/[‘’]/g, \"'\")\n    .replace(/[“”]/g, '\"')\n    .replace(/[^a-z0-9\\s']/g, \" \")\n    .replace(/\\s+/g, \" \")\n    .trim();\n}\n\nfunction titleTokens(title) {\n  return normalizeTitle(title)\n    .split(\" \")\n    .map((t) => t.replace(/^'+|'+$/g, \"\"))\n    .filter((t) => t.length > 1 && !STOPWORDS.has(t));\n}\n\nfunction jaccard(aTokens, bTokens) {\n  if (!aTokens.length || !bTokens.length) return 0;\n  const a = new Set(aTokens);\n  const b = new Set(bTokens);\n  let inter = 0;\n  for (const t of a) if (b.has(t)) inter += 1;\n  const union = a.size + b.size - inter;\n  return union === 0 ? 0 : inter / union;\n}\n\nfunction titlesNearDuplicate(titleA, titleB, threshold) {\n  const thr = threshold == null ? 0.72 : threshold;\n  const a = titleTokens(titleA);\n  const b = titleTokens(titleB);\n  const score = jaccard(a, b);\n  if (score >= thr) return { match: true, score };\n  const shorter = a.length <= b.length ? a : b;\n  const longer = a.length <= b.length ? b : a;\n  if (shorter.length >= 4) {\n    const longerSet = new Set(longer);\n    const hit = shorter.filter((t) => longerSet.has(t)).length;\n    const containment = hit / shorter.length;\n    if (containment >= 0.9 && score >= 0.55) {\n      return { match: true, score: Math.max(score, containment) };\n    }\n  }\n  return { match: false, score };\n}\n\nfunction sourceRankMap(sources) {\n  const map = new Map();\n  (sources || []).forEach((s, i) => {\n    if (s && s.id) map.set(s.id, i);\n  });\n  return map;\n}\n\nfunction richnessScore(article, sourceRank) {\n  const snippetLen = (article.snippet || \"\").length;\n  const contentLen = (article.content || \"\").length;\n  const hasDate = article.publishedAt ? 1 : 0;\n  const rank = sourceRank.has(article.sourceId)\n    ? sourceRank.get(article.sourceId)\n    : 999;\n  return snippetLen + contentLen + hasDate * 200 - rank * 5;\n}\n\nfunction normalizeArticle(raw) {\n  const title = cleanText(raw.title);\n  const url = canonicalizeUrl(raw.url);\n  const snippet = cleanText(raw.snippet);\n  const content = cleanText(raw.content);\n  const publishedAt = toAsiaKolkataIso(raw.publishedAt);\n  const fetchedAt = toAsiaKolkataIso(raw.fetchedAt) || raw.fetchedAt || null;\n  if (!title || !url) return null;\n  return {\n    id: raw.id,\n    sourceId: raw.sourceId,\n    sourceName: raw.sourceName,\n    title,\n    url,\n    publishedAt,\n    snippet,\n    content: content || snippet,\n    fetchedAt,\n  };\n}\n\nfunction exactDedupe(articles, sourceRank) {\n  const byKey = new Map();\n  let dropped = 0;\n  for (const a of articles) {\n    const key = a.url || a.id;\n    if (!key) continue;\n    const existing = byKey.get(key);\n    if (!existing) {\n      byKey.set(key, a);\n      continue;\n    }\n    dropped += 1;\n    if (richnessScore(a, sourceRank) > richnessScore(existing, sourceRank)) {\n      byKey.set(key, a);\n    }\n  }\n  const byId = new Map();\n  for (const a of byKey.values()) {\n    const existing = byId.get(a.id);\n    if (!existing) {\n      byId.set(a.id, a);\n      continue;\n    }\n    dropped += 1;\n    if (richnessScore(a, sourceRank) > richnessScore(existing, sourceRank)) {\n      byId.set(a.id, a);\n    }\n  }\n  return { articles: [...byId.values()], dropped };\n}\n\nfunction nearDedupe(articles, sourceRank, threshold) {\n  const thr = threshold == null ? 0.72 : threshold;\n  const kept = [];\n  let dropped = 0;\n  const ordered = [...articles].sort(\n    (a, b) => richnessScore(b, sourceRank) - richnessScore(a, sourceRank)\n  );\n  for (const candidate of ordered) {\n    let dupOf = null;\n    for (const existing of kept) {\n      const { match } = titlesNearDuplicate(candidate.title, existing.title, thr);\n      if (match) {\n        dupOf = existing;\n        break;\n      }\n    }\n    if (dupOf) {\n      dropped += 1;\n      if (richnessScore(candidate, sourceRank) > richnessScore(dupOf, sourceRank)) {\n        kept[kept.indexOf(dupOf)] = candidate;\n      }\n      continue;\n    }\n    kept.push(candidate);\n  }\n  return { articles: kept, dropped };\n}\n\nfunction capArticles(articles, maxTotal) {\n  const max = Math.max(1, Number(maxTotal) || 40);\n  const sorted = [...articles].sort((a, b) => {\n    const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;\n    const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;\n    if (tb !== ta) return tb - ta;\n    return (b.fetchedAt || \"\").localeCompare(a.fetchedAt || \"\");\n  });\n  const capped = sorted.slice(0, max);\n  return { articles: capped, dropped: Math.max(0, sorted.length - capped.length) };\n}\n\nfunction buildCorpus(rawArticles, options) {\n  options = options || {};\n  const sourceRank = sourceRankMap(options.sources);\n  const maxArticlesTotal = options.maxArticlesTotal == null ? 40 : options.maxArticlesTotal;\n  const threshold =\n    options.nearDuplicateThreshold == null ? 0.72 : options.nearDuplicateThreshold;\n  const sourceStatuses = options.sourceStatuses || [];\n\n  const normalized = [];\n  for (const raw of rawArticles || []) {\n    const a = normalizeArticle(raw);\n    if (a) normalized.push(a);\n  }\n\n  const exact = exactDedupe(normalized, sourceRank);\n  const near = nearDedupe(exact.articles, sourceRank, threshold);\n  const capped = capArticles(near.articles, maxArticlesTotal);\n\n  const sourceSuccessCount = sourceStatuses.filter((s) => s.status === \"success\").length;\n  const sourceFailedCount = sourceStatuses.filter((s) => s.status === \"failed\").length;\n  const failedSources = sourceStatuses\n    .filter((s) => s.status === \"failed\")\n    .map((s) => ({\n      sourceId: s.sourceId,\n      sourceName: s.sourceName,\n      error: s.error,\n    }));\n\n  const articleCount = capped.articles.length;\n  const dedupedCount = exact.dropped + near.dropped;\n\n  return {\n    articles: capped.articles,\n    stats: {\n      rawCount: (rawArticles || []).length,\n      normalizedCount: normalized.length,\n      exactDedupedCount: exact.dropped,\n      nearDedupedCount: near.dropped,\n      dedupedCount,\n      cappedCount: capped.dropped,\n      articleCount,\n      sourceSuccessCount,\n      sourceFailedCount,\n      failedSources,\n      nearDuplicateThreshold: threshold,\n      maxArticlesTotal,\n    },\n    guard: {\n      proceed: articleCount > 0,\n      reason: articleCount > 0 ? null : \"empty_corpus\",\n      skipLlm: articleCount === 0,\n      skipPublish: articleCount === 0,\n    },\n  };\n}\n\n\nconst input = $input.first().json || {};\nconst config = input.config || {};\nconst rawArticles = Array.isArray(input.articles) ? input.articles : [];\nconst sourceStatuses = Array.isArray(input.sourceStatuses) ? input.sourceStatuses : [];\n\nconst corpusResult = buildCorpus(rawArticles, {\n  sources: config.sources || [],\n  maxArticlesTotal: config.maxArticlesTotal || 40,\n  sourceStatuses,\n});\n\nconst collection = input.collection || {};\n\nreturn [\n  {\n    json: {\n      runId: input.runId,\n      runDate: input.runDate,\n      triggeredAt: input.triggeredAt,\n      mode: input.mode,\n      timezone: input.timezone || config.timezone || 'Asia/Kolkata',\n      config,\n      sourceStatuses,\n      collection,\n      articles: corpusResult.articles,\n      corpus: corpusResult.stats,\n      guard: corpusResult.guard,\n      articleCount: corpusResult.stats.articleCount,\n      dedupedCount: corpusResult.stats.dedupedCount,\n      sourceSuccessCount: corpusResult.stats.sourceSuccessCount,\n      phase: 'phase3-normalize',\n      nextPhaseHint: corpusResult.guard.proceed\n        ? 'Phase 4 will categorize and summarize with Gemini'\n        : 'Empty corpus — skipped LLM and publish (keep last good website summary)',\n    },\n  },\n];\n"
+      },
+      "id": "e5f6a7b8-c9d0-1234-ef01-345678901234",
+      "name": "Normalize & Dedupe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1180,
+        400
+      ],
+      "notes": "Trim/decode, canonicalize URLs, Asia/Kolkata timestamps, exact+near dedupe, maxArticlesTotal cap, corpus stats + guard flags."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cca5734f-f764-42c8-b616-fcb84ebcf94c",
+              "leftValue": "={{ $json.guard.proceed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f6a7b8c9-d0e1-2345-f012-456789012345",
+      "name": "IF Articles Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1420,
+        400
+      ],
+      "notes": "True → AI categorize/summarize. False → empty-run guard (no LLM, no publish)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Phase 4 — Stage A categorize + Stage B summarize (Gemini REST via helpers.httpRequest)\nconst AI_DEFAULT_CATEGORIES = [\n  \"Politics\",\n  \"Sports\",\n  \"Business\",\n  \"Technology\",\n  \"Entertainment\",\n  \"Health\",\n  \"Education\",\n  \"Crime\",\n  \"Weather\",\n  \"World\",\n];\n\nconst AI_DEFAULT_MODEL = \"gemini-3.5-flash-lite\";\nconst AI_DEFAULT_RPM = 15;\nconst AI_DEFAULT_TPM = 250000;\nconst AI_DEFAULT_RPD = 500;\n\nfunction aiSleep(ms) {\n  return new Promise(function (resolve) {\n    setTimeout(resolve, ms);\n  });\n}\n\nfunction aiEstimateTokens(text, outputReserve) {\n  const chars = String(text || \"\").length;\n  return Math.ceil(chars / 4) + Math.max(64, Number(outputReserve) || 800);\n}\n\nfunction aiCreateRateLimiter(limits) {\n  limits = limits || {};\n  const rpm = Math.max(1, Number(limits.requestsPerMinute) || AI_DEFAULT_RPM);\n  const tpm = Math.max(1000, Number(limits.tokensPerMinute) || AI_DEFAULT_TPM);\n  const rpd = Math.max(1, Number(limits.requestsPerDay) || AI_DEFAULT_RPD);\n  const minGapMs =\n    typeof limits.minRequestGapMs === \"number\"\n      ? Math.max(0, limits.minRequestGapMs)\n      : Math.ceil(60000 / rpm) + 200;\n  const maxRequestsPerRun =\n    typeof limits.maxRequestsPerRun === \"number\"\n      ? Math.max(1, limits.maxRequestsPerRun)\n      : Math.min(16, Math.floor(rpd / 24));\n\n  let lastRequestAt = 0;\n  const minuteWindow = [];\n  let day = new Date().toISOString().slice(0, 10);\n  let dayCount = 0;\n  let runCount = 0;\n\n  function prune(now) {\n    const cutoff = now - 60000;\n    while (minuteWindow.length && minuteWindow[0].at < cutoff) {\n      minuteWindow.shift();\n    }\n    const today = new Date(now).toISOString().slice(0, 10);\n    if (today !== day) {\n      day = today;\n      dayCount = 0;\n    }\n  }\n\n  async function acquire(estimatedTokens) {\n    const tokens = Math.max(1, Number(estimatedTokens) || 1);\n    prune(Date.now());\n    if (runCount >= maxRequestsPerRun) {\n      const err = new Error(\n        \"rate_limit_run: max \" + maxRequestsPerRun + \" Gemini requests per run\"\n      );\n      err.code = \"rate_limit_run\";\n      throw err;\n    }\n    if (dayCount >= rpd) {\n      const err = new Error(\n        \"rate_limit_day: max \" + rpd + \" Gemini requests per day\"\n      );\n      err.code = \"rate_limit_day\";\n      throw err;\n    }\n    for (;;) {\n      const now = Date.now();\n      prune(now);\n      let usedTokens = 0;\n      for (let i = 0; i < minuteWindow.length; i++) {\n        usedTokens += minuteWindow[i].tokens;\n      }\n      let waitMs = 0;\n      if (lastRequestAt && now - lastRequestAt < minGapMs) {\n        waitMs = Math.max(waitMs, minGapMs - (now - lastRequestAt));\n      }\n      if (minuteWindow.length >= rpm) {\n        waitMs = Math.max(waitMs, minuteWindow[0].at + 60000 - now + 50);\n      }\n      if (usedTokens + tokens > tpm) {\n        waitMs = Math.max(\n          waitMs,\n          minuteWindow[0] ? minuteWindow[0].at + 60000 - now + 50 : minGapMs\n        );\n      }\n      if (waitMs <= 0) break;\n      await aiSleep(waitMs);\n    }\n    const at = Date.now();\n    lastRequestAt = at;\n    minuteWindow.push({ at: at, tokens: tokens });\n    dayCount += 1;\n    runCount += 1;\n    return { runCount: runCount, dayCount: dayCount };\n  }\n\n  function remainingRunBudget() {\n    return Math.max(0, maxRequestsPerRun - runCount);\n  }\n\n  function getStats() {\n    prune(Date.now());\n    let minuteTokens = 0;\n    for (let i = 0; i < minuteWindow.length; i++) {\n      minuteTokens += minuteWindow[i].tokens;\n    }\n    return {\n      requestsPerMinuteLimit: rpm,\n      tokensPerMinuteLimit: tpm,\n      requestsPerDayLimit: rpd,\n      minGapMs: minGapMs,\n      maxRequestsPerRun: maxRequestsPerRun,\n      runCount: runCount,\n      dayCount: dayCount,\n      minuteRequests: minuteWindow.length,\n      minuteTokens: minuteTokens,\n    };\n  }\n\n  return {\n    acquire: acquire,\n    remainingRunBudget: remainingRunBudget,\n    getStats: getStats,\n    maxRequestsPerRun: maxRequestsPerRun,\n  };\n}\n\nfunction aiTruncateText(value, maxChars) {\n  const s = String(value || \"\")\n    .replace(/\\s+/g, \" \")\n    .trim();\n  if (!s) return \"\";\n  const max = Math.max(40, Number(maxChars) || 500);\n  if (s.length <= max) return s;\n  return s.slice(0, max - 1).trimEnd() + \"…\";\n}\n\nfunction aiStripFences(text) {\n  let s = String(text || \"\").trim();\n  if (!s) return \"\";\n  const fenced = s.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  if (fenced) s = fenced[1].trim();\n  return s;\n}\n\nfunction aiExtractJsonObject(text) {\n  const s = aiStripFences(text);\n  if (!s) {\n    const err = new Error(\"empty_llm_text\");\n    err.code = \"empty_llm_text\";\n    throw err;\n  }\n  try {\n    return JSON.parse(s);\n  } catch (_) {}\n  const start = s.indexOf(\"{\");\n  const end = s.lastIndexOf(\"}\");\n  if (start < 0 || end <= start) {\n    const err = new Error(\"no_json_object\");\n    err.code = \"no_json_object\";\n    throw err;\n  }\n  try {\n    return JSON.parse(s.slice(start, end + 1));\n  } catch (e) {\n    const err = new Error(\"json_parse_failed: \" + e.message);\n    err.code = \"json_parse_failed\";\n    throw err;\n  }\n}\n\nfunction aiBuildCategorizePrompt(articles, options) {\n  const categories = (options && options.categories) || AI_DEFAULT_CATEGORIES;\n  const maxContentChars = (options && options.maxContentChars) || 500;\n  const system =\n    \"You are a news categorization assistant for Indian news briefings.\\n\\n\" +\n    \"Assign each article exactly one category from this enum:\\n\" +\n    categories.join(\", \") +\n    \"\\n\\nRules:\\n\" +\n    \"1. Use only the provided title, snippet/content, and source name.\\n\" +\n    \"2. Do not invent facts.\\n\" +\n    \"3. Prefer the most specific matching category.\\n\" +\n    \"4. Weather covers weather and environment.\\n\" +\n    \"5. Return confidence between 0 and 1, and optional importance between 0 and 1.\\n\\n\" +\n    \"Return ONLY valid JSON (no markdown fences) in this shape:\\n\" +\n    '{\"assignments\":[{\"articleId\":\"string\",\"category\":\"Politics\",\"confidence\":0.86,\"importance\":0.7}]}\\n\\n' +\n    \"Include one assignment per input articleId. Do not invent articleIds.\";\n\n  const payload = (articles || []).map(function (a) {\n    return {\n      articleId: a.id,\n      title: a.title,\n      sourceName: a.sourceName,\n      text: aiTruncateText(a.content || a.snippet || \"\", maxContentChars),\n    };\n  });\n  const user = \"Articles JSON:\\n\" + JSON.stringify(payload, null, 2);\n  return system + \"\\n\\n\" + user;\n}\n\nfunction aiBuildSummarizePrompt(category, articles, options) {\n  const maxContentChars = (options && options.maxContentChars) || 500;\n  const system =\n    \"You are an AI news summarization assistant for an India hourly briefing.\\n\\n\" +\n    \"Category to summarize: \" +\n    category +\n    \"\\n\\nRules:\\n\" +\n    \"1. Use only the article information provided below.\\n\" +\n    \"2. Do not invent facts, names, numbers, or URLs.\\n\" +\n    \"3. Write short, neutral, factual bullets (aim ≤ 40 words each).\\n\" +\n    \"4. Avoid sensationalism and political bias.\\n\" +\n    \"5. Avoid duplicate bullets for the same story; merge multi-source coverage into one bullet with multiple sources.\\n\" +\n    \"6. Every bullet MUST include at least one source using an exact title and URL from the input articles.\\n\" +\n    \"7. Ignore ads, navigation text, and unrelated boilerplate.\\n\" +\n    \"8. Prefer the most newsworthy points; typically 1–4 bullets for this category.\\n\\n\" +\n    \"Return ONLY valid JSON (no markdown fences) in this shape:\\n\" +\n    '{\"category\":\"' +\n    category +\n    '\",\"bullets\":[{\"summary\":\"Short factual bullet\",\"sources\":[{\"title\":\"Exact article title from input\",\"url\":\"https://exact-url-from-input\"}]}]}\\n\\n' +\n    'If nothing newsworthy can be grounded in the inputs, return {\"category\":\"' +\n    category +\n    '\",\"bullets\":[]}.';\n\n  const payload = (articles || []).map(function (a) {\n    return {\n      articleId: a.id,\n      title: a.title,\n      url: a.url,\n      sourceName: a.sourceName,\n      text: aiTruncateText(a.content || a.snippet || \"\", maxContentChars),\n    };\n  });\n  const user =\n    'Articles in category \"' +\n    category +\n    '\":\\n' +\n    JSON.stringify(payload, null, 2);\n  return system + \"\\n\\n\" + user;\n}\n\nfunction aiBatchArticles(articles, batchSize) {\n  const size = Math.max(1, Number(batchSize) || 10);\n  const batches = [];\n  const list = articles || [];\n  for (let i = 0; i < list.length; i += size) {\n    batches.push(list.slice(i, i + size));\n  }\n  return batches;\n}\n\nfunction aiNormalizeCategory(raw, allowed) {\n  if (!raw) return null;\n  const s = String(raw).trim().toLowerCase();\n  for (let i = 0; i < allowed.length; i++) {\n    if (allowed[i].toLowerCase() === s) return allowed[i];\n  }\n  return null;\n}\n\nfunction aiClamp01(n, fallback) {\n  const x = Number(n);\n  if (!Number.isFinite(x)) return fallback;\n  if (x < 0) return 0;\n  if (x > 1) return 1;\n  return x;\n}\n\nfunction aiApplyCategorization(articles, llmPayload, options) {\n  const allowed = (options && options.categories) || AI_DEFAULT_CATEGORIES;\n  const minConfidence =\n    options && typeof options.minConfidence === \"number\"\n      ? options.minConfidence\n      : 0.35;\n  const byId = new Map();\n  (articles || []).forEach(function (a) {\n    byId.set(a.id, a);\n  });\n  const assignments =\n    llmPayload && Array.isArray(llmPayload.assignments)\n      ? llmPayload.assignments\n      : [];\n  const categorized = [];\n  const dropped = [];\n  const seen = new Set();\n  let lowConfidence = 0;\n  let unknownCategory = 0;\n\n  for (let i = 0; i < assignments.length; i++) {\n    const row = assignments[i];\n    const articleId = row && row.articleId;\n    if (!articleId || !byId.has(articleId) || seen.has(articleId)) {\n      continue;\n    }\n    seen.add(articleId);\n    const category = aiNormalizeCategory(row.category, allowed);\n    const confidence = aiClamp01(row.confidence, 0.5);\n    const importance = aiClamp01(row.importance, null);\n    if (!category) {\n      unknownCategory += 1;\n      dropped.push({\n        articleId: articleId,\n        reason: \"unknown_category\",\n        rawCategory: row.category,\n      });\n      continue;\n    }\n    if (confidence < minConfidence) {\n      lowConfidence += 1;\n      dropped.push({\n        articleId: articleId,\n        reason: \"low_confidence\",\n        category: category,\n        confidence: confidence,\n      });\n      continue;\n    }\n    const base = byId.get(articleId);\n    categorized.push(\n      Object.assign({}, base, {\n        category: category,\n        confidence: confidence,\n        importance: importance,\n      })\n    );\n  }\n\n  (articles || []).forEach(function (a) {\n    if (!seen.has(a.id)) {\n      dropped.push({ articleId: a.id, reason: \"missing_assignment\" });\n    }\n  });\n\n  return {\n    articles: categorized,\n    dropped: dropped,\n    stats: {\n      inputCount: (articles || []).length,\n      categorizedCount: categorized.length,\n      droppedCount: dropped.length,\n      unknownCategory: unknownCategory,\n      lowConfidence: lowConfidence,\n      minConfidence: minConfidence,\n    },\n  };\n}\n\nfunction aiGroupByCategory(articles, categories) {\n  const order = categories || AI_DEFAULT_CATEGORIES;\n  const map = new Map();\n  order.forEach(function (c) {\n    map.set(c, []);\n  });\n  (articles || []).forEach(function (a) {\n    if (a.category && map.has(a.category)) map.get(a.category).push(a);\n  });\n  const groups = [];\n  order.forEach(function (category) {\n    const items = map.get(category) || [];\n    if (items.length) groups.push({ category: category, articles: items });\n  });\n  return groups;\n}\n\nfunction aiNormalizeUrl(u) {\n  try {\n    const url = new URL(String(u || \"\").trim());\n    url.hash = \"\";\n    return url.toString().replace(/\\/$/, \"\");\n  } catch (_) {\n    return String(u || \"\").trim();\n  }\n}\n\nfunction aiSanitizeCategorySummary(category, llmPayload, articles) {\n  const byUrl = new Map();\n  const byTitle = new Map();\n  (articles || []).forEach(function (a) {\n    const key = aiNormalizeUrl(a.url);\n    if (key) byUrl.set(key, a);\n    if (a.url) byUrl.set(String(a.url).trim(), a);\n    byTitle.set(\n      String(a.title || \"\")\n        .replace(/\\s+/g, \" \")\n        .trim()\n        .toLowerCase(),\n      a\n    );\n  });\n\n  const rawBullets =\n    llmPayload && Array.isArray(llmPayload.bullets) ? llmPayload.bullets : [];\n  const bullets = [];\n  let droppedNoSources = 0;\n\n  for (let i = 0; i < rawBullets.length; i++) {\n    const bullet = rawBullets[i];\n    const summary = String((bullet && bullet.summary) || \"\")\n      .replace(/\\s+/g, \" \")\n      .trim();\n    if (!summary) continue;\n    const rawSources = Array.isArray(bullet.sources) ? bullet.sources : [];\n    const sources = [];\n    const seen = new Set();\n\n    for (let j = 0; j < rawSources.length; j++) {\n      const s = rawSources[j];\n      const url = aiNormalizeUrl(s && s.url);\n      let article = byUrl.get(url) || byUrl.get(String((s && s.url) || \"\").trim());\n      if (!article) {\n        const title = String((s && s.title) || \"\")\n          .replace(/\\s+/g, \" \")\n          .trim()\n          .toLowerCase();\n        article = byTitle.get(title);\n      }\n      if (!article) continue;\n      const key = aiNormalizeUrl(article.url);\n      if (seen.has(key)) continue;\n      seen.add(key);\n      sources.push({ title: article.title, url: article.url });\n    }\n\n    if (!sources.length) {\n      droppedNoSources += 1;\n      continue;\n    }\n    bullets.push({ summary: summary, sources: sources });\n  }\n\n  return {\n    category: category,\n    bullets: bullets,\n    stats: {\n      rawBulletCount: rawBullets.length,\n      keptBulletCount: bullets.length,\n      droppedNoSources: droppedNoSources,\n    },\n  };\n}\n\nfunction aiMergeBriefingCategories(categoryResults) {\n  const categories = [];\n  (categoryResults || []).forEach(function (r) {\n    if (!r || !r.category) return;\n    if (!Array.isArray(r.bullets) || !r.bullets.length) return;\n    categories.push({ category: r.category, bullets: r.bullets });\n  });\n  return categories;\n}\n\nfunction aiMockCategorizeText(articles, categories) {\n  const allowed = categories || AI_DEFAULT_CATEGORIES;\n  const rules = [\n    [/cricket|football|match|sport|ipl|athlete/i, \"Sports\"],\n    [/stock|market|bank|gdp|rupee|business|economy|tatkal|railway/i, \"Business\"],\n    [/ai |tech|app|software|cyber|scientist/i, \"Technology\"],\n    [/film|movie|actor|entertainment|bollywood/i, \"Entertainment\"],\n    [/hospital|health|doctor|medical|vaccine|disease/i, \"Health\"],\n    [/school|university|education|student|teacher|minister.*education/i, \"Education\"],\n    [/crime|arrest|police|murder|theft|fir\\b/i, \"Crime\"],\n    [/weather|rain|flood|cyclone|heatwave|environment|waste|clean-up/i, \"Weather\"],\n    [/un |ukraine|gaza|china|pakistan|world |global|international/i, \"World\"],\n    [/minister|parliament|election|bjp|congress|cabinet|court|law|cm\\b|pm\\b/i, \"Politics\"],\n  ];\n  const assignments = (articles || []).map(function (a) {\n    const hay = (a.title || \"\") + \" \" + (a.snippet || \"\") + \" \" + (a.content || \"\");\n    let category = \"Politics\";\n    for (let i = 0; i < rules.length; i++) {\n      if (rules[i][0].test(hay) && allowed.indexOf(rules[i][1]) >= 0) {\n        category = rules[i][1];\n        break;\n      }\n    }\n    return {\n      articleId: a.id,\n      category: category,\n      confidence: 0.78,\n      importance: 0.6,\n    };\n  });\n  return JSON.stringify({ assignments: assignments });\n}\n\nfunction aiMockSummarizeText(category, articles) {\n  const bullets = (articles || []).slice(0, 3).map(function (a) {\n    return {\n      summary: String(a.title || \"\")\n        .replace(/\\s+/g, \" \")\n        .trim()\n        .slice(0, 160),\n      sources: [{ title: a.title, url: a.url }],\n    };\n  });\n  return JSON.stringify({ category: category, bullets: bullets });\n}\n\nfunction aiExtractGeminiText(data) {\n  const parts =\n    data &&\n    data.candidates &&\n    data.candidates[0] &&\n    data.candidates[0].content &&\n    data.candidates[0].content.parts;\n  if (!Array.isArray(parts) || !parts.length) {\n    const err = new Error(\"gemini_empty_candidates\");\n    err.code = \"gemini_empty_candidates\";\n    throw err;\n  }\n  const texts = parts\n    .filter(function (p) {\n      return p && p.text && !p.thought;\n    })\n    .map(function (p) {\n      return p.text;\n    });\n  return (texts.length\n    ? texts\n    : parts.map(function (p) {\n        return p.text || \"\";\n      })\n  )\n    .join(\"\")\n    .trim();\n}\n\nasync function aiGeminiGenerate(prompt, options) {\n  const apiKey = (options && options.apiKey) || \"\";\n  if (!apiKey) {\n    const err = new Error(\"missing_gemini_api_key\");\n    err.code = \"missing_gemini_api_key\";\n    throw err;\n  }\n  const model = (options && options.model) || AI_DEFAULT_MODEL;\n  const thinkingLevel =\n    (options && options.thinkingLevel) || \"minimal\";\n  const url =\n    \"https://generativelanguage.googleapis.com/v1beta/models/\" +\n    encodeURIComponent(model) +\n    \":generateContent?key=\" +\n    encodeURIComponent(apiKey);\n\n  const body = {\n    contents: [{ role: \"user\", parts: [{ text: prompt }] }],\n    generationConfig: {\n      responseMimeType: \"application/json\",\n      thinkingConfig: {\n        thinkingLevel: String(thinkingLevel).toLowerCase(),\n      },\n    },\n  };\n\n  const httpRequest = options.httpRequest;\n  const res = await httpRequest({\n    method: \"POST\",\n    url: url,\n    headers: { \"Content-Type\": \"application/json\" },\n    body: body,\n    json: true,\n    timeout: (options && options.timeout) || 60000,\n    returnFullResponse: true,\n    ignoreHttpStatusErrors: true,\n  });\n\n  const statusCode = res.statusCode != null ? res.statusCode : res.status || 0;\n  let data = res.body != null ? res.body : res.data;\n  if (typeof data === \"string\") {\n    try {\n      data = JSON.parse(data);\n    } catch (_) {}\n  }\n  if (statusCode < 200 || statusCode >= 300) {\n    const err = new Error(\n      \"gemini_http_\" +\n        statusCode +\n        \": \" +\n        (typeof data === \"string\"\n          ? data.slice(0, 200)\n          : JSON.stringify(data).slice(0, 200))\n    );\n    err.code = \"gemini_http_error\";\n    err.statusCode = statusCode;\n    throw err;\n  }\n  return aiExtractGeminiText(data);\n}\n\nasync function aiWithRetry(fn, maxRetries) {\n  const attempts = Math.max(0, Number(maxRetries) || 0) + 1;\n  let lastErr;\n  for (let i = 0; i < attempts; i++) {\n    try {\n      return await fn(i);\n    } catch (err) {\n      lastErr = err;\n      const status = err && err.statusCode;\n      if (i < attempts - 1) {\n        const wait =\n          status === 429\n            ? Math.min(60000, (Math.ceil(60000 / AI_DEFAULT_RPM) + 500) * (i + 1))\n            : Math.min(10000, 500 * Math.pow(2, i));\n        await aiSleep(wait);\n      }\n    }\n  }\n  throw lastErr;\n}\n\n/**\n * Full Stage A + B for n8n Code node.\n * options: { categories, llm config fields, apiKey, httpRequest, mock }\n */\nasync function aiRunPipeline(articles, options) {\n  options = options || {};\n  const categories = options.categories || AI_DEFAULT_CATEGORIES;\n  const llm = options.llm || {};\n  const model = llm.model || AI_DEFAULT_MODEL;\n  const batchSize = llm.categorizeBatchSize || 10;\n  const maxContentChars = llm.maxContentChars || 500;\n  const minConfidence =\n    typeof llm.minConfidence === \"number\" ? llm.minConfidence : 0.35;\n  const maxRetries = typeof llm.maxRetries === \"number\" ? llm.maxRetries : 1;\n  const thinkingLevel = llm.thinkingLevel || \"minimal\";\n  const useMock = Boolean(options.mock);\n  const rateLimits = Object.assign(\n    {\n      requestsPerMinute: AI_DEFAULT_RPM,\n      tokensPerMinute: AI_DEFAULT_TPM,\n      requestsPerDay: AI_DEFAULT_RPD,\n    },\n    llm.rateLimits || {}\n  );\n  if (typeof llm.maxRequestsPerRun === \"number\") {\n    rateLimits.maxRequestsPerRun = llm.maxRequestsPerRun;\n  }\n  if (typeof llm.minRequestGapMs === \"number\") {\n    rateLimits.minRequestGapMs = llm.minRequestGapMs;\n  }\n  const limiter = useMock ? null : aiCreateRateLimiter(rateLimits);\n\n  const callLlm = async function (prompt, mockText) {\n    if (useMock) return mockText;\n    if (limiter) await limiter.acquire(aiEstimateTokens(prompt, 800));\n    return aiGeminiGenerate(prompt, {\n      apiKey: options.apiKey,\n      model: model,\n      thinkingLevel: thinkingLevel,\n      httpRequest: options.httpRequest,\n      timeout: llm.timeoutMs || 60000,\n    });\n  };\n\n  const batches = aiBatchArticles(articles, batchSize);\n  const allAssignments = [];\n  const errors = [];\n  const skipped = [];\n\n  for (let bi = 0; bi < batches.length; bi++) {\n    if (limiter && limiter.remainingRunBudget() <= 0) {\n      errors.push({\n        stage: \"categorize\",\n        batch: bi,\n        error: \"rate_limit_run budget exhausted\",\n        code: \"rate_limit_run\",\n      });\n      break;\n    }\n    const batch = batches[bi];\n    const prompt = aiBuildCategorizePrompt(batch, {\n      categories: categories,\n      maxContentChars: maxContentChars,\n    });\n    try {\n      const text = await aiWithRetry(async function () {\n        const raw = await callLlm(prompt, aiMockCategorizeText(batch, categories));\n        const parsed = aiExtractJsonObject(raw);\n        if (!parsed || !Array.isArray(parsed.assignments)) {\n          const err = new Error(\"categorize_missing_assignments\");\n          err.code = \"categorize_missing_assignments\";\n          throw err;\n        }\n        return raw;\n      }, maxRetries);\n      const parsed = aiExtractJsonObject(text);\n      allAssignments.push.apply(allAssignments, parsed.assignments);\n    } catch (err) {\n      errors.push({\n        stage: \"categorize\",\n        batch: bi,\n        error: (err && err.message) || String(err),\n        code: err && err.code,\n      });\n      if (options.fallbackMockOnError || useMock) {\n        const parsed = aiExtractJsonObject(\n          aiMockCategorizeText(batch, categories)\n        );\n        allAssignments.push.apply(allAssignments, parsed.assignments);\n      }\n    }\n  }\n\n  const applied = aiApplyCategorization(\n    articles,\n    { assignments: allAssignments },\n    { categories: categories, minConfidence: minConfidence }\n  );\n  let groups = aiGroupByCategory(applied.articles, categories);\n  const sumResults = [];\n\n  if (limiter) {\n    const budget = limiter.remainingRunBudget();\n    const maxGroups = Math.max(0, Math.floor(budget / (maxRetries + 1)));\n    if (maxGroups < groups.length) {\n      const ordered = groups.slice().sort(function (a, b) {\n        return (b.articles || []).length - (a.articles || []).length;\n      });\n      const chosen = ordered.slice(0, maxGroups);\n      const chosenSet = {};\n      chosen.forEach(function (g) {\n        chosenSet[g.category] = true;\n      });\n      groups.forEach(function (g) {\n        if (!chosenSet[g.category]) {\n          skipped.push({\n            category: g.category,\n            reason: \"rate_limit_run\",\n            articleCount: (g.articles || []).length,\n          });\n        }\n      });\n      groups = chosen;\n    }\n  }\n\n  for (let gi = 0; gi < groups.length; gi++) {\n    const group = groups[gi];\n    if (limiter && limiter.remainingRunBudget() <= 0) {\n      skipped.push({\n        category: group.category,\n        reason: \"rate_limit_run\",\n        articleCount: (group.articles || []).length,\n      });\n      continue;\n    }\n    const prompt = aiBuildSummarizePrompt(group.category, group.articles, {\n      maxContentChars: maxContentChars,\n    });\n    try {\n      const text = await aiWithRetry(async function () {\n        const raw = await callLlm(\n          prompt,\n          aiMockSummarizeText(group.category, group.articles)\n        );\n        const parsed = aiExtractJsonObject(raw);\n        if (!parsed || !Array.isArray(parsed.bullets)) {\n          const err = new Error(\"summarize_missing_bullets\");\n          err.code = \"summarize_missing_bullets\";\n          throw err;\n        }\n        return raw;\n      }, maxRetries);\n      const parsed = aiExtractJsonObject(text);\n      sumResults.push(\n        aiSanitizeCategorySummary(group.category, parsed, group.articles)\n      );\n    } catch (err) {\n      errors.push({\n        stage: \"summarize\",\n        category: group.category,\n        error: (err && err.message) || String(err),\n        code: err && err.code,\n      });\n      if (options.fallbackMockOnError || useMock) {\n        const parsed = aiExtractJsonObject(\n          aiMockSummarizeText(group.category, group.articles)\n        );\n        sumResults.push(\n          aiSanitizeCategorySummary(group.category, parsed, group.articles)\n        );\n      }\n    }\n  }\n\n  const briefingCategories = aiMergeBriefingCategories(sumResults);\n  const ok = briefingCategories.length > 0;\n\n  return {\n    articles: applied.articles,\n    dropped: applied.dropped,\n    groups: groups,\n    categories: briefingCategories,\n    ai: {\n      model: useMock ? \"mock\" : model,\n      mock: useMock,\n      thinkingLevel: thinkingLevel,\n      categorizedCount: applied.stats.categorizedCount,\n      droppedCount: applied.stats.droppedCount,\n      lowConfidence: applied.stats.lowConfidence,\n      groupCount: groups.length,\n      summarizedCategories: briefingCategories.length,\n      skippedCategories: skipped,\n      errors: errors,\n      categorizeStats: applied.stats,\n      summarizeStats: sumResults.map(function (r) {\n        return Object.assign({ category: r.category }, r.stats);\n      }),\n      rateLimit: limiter ? limiter.getStats() : { mock: true },\n    },\n    guard: {\n      proceed: ok,\n      reason: ok ? null : \"ai_empty_briefing\",\n      skipLlm: false,\n      skipPublish: !ok,\n    },\n  };\n}\n\n\nconst input = $input.first().json || {};\nconst config = input.config || {};\nconst articles = Array.isArray(input.articles) ? input.articles : [];\n\nconst envKey =\n  typeof $vars !== 'undefined' && $vars.GEMINI_API_KEY\n    ? $vars.GEMINI_API_KEY\n    : '';\nconst forceMock =\n  (typeof $vars !== 'undefined' && String($vars.AI_MOCK || '').toLowerCase() === 'true') ||\n  !envKey;\n\nconst result = await aiRunPipeline(articles, {\n  categories: config.categories || [],\n  llm: config.llm || {},\n  apiKey: envKey,\n  httpRequest: this.helpers.httpRequest.bind(this.helpers),\n  mock: forceMock,\n  fallbackMockOnError: forceMock,\n});\n\nreturn [\n  {\n    json: {\n      runId: input.runId,\n      runDate: input.runDate,\n      triggeredAt: input.triggeredAt,\n      mode: input.mode,\n      timezone: input.timezone || config.timezone || 'Asia/Kolkata',\n      config,\n      sourceStatuses: input.sourceStatuses || [],\n      collection: input.collection || {},\n      corpus: input.corpus || {},\n      articles: result.articles,\n      dropped: result.dropped,\n      categories: result.categories,\n      ai: result.ai,\n      guard: {\n        ...(input.guard || {}),\n        ...result.guard,\n      },\n      articleCount: (input.corpus && input.corpus.articleCount) || articles.length,\n      dedupedCount: (input.corpus && input.corpus.dedupedCount) || 0,\n      sourceSuccessCount:\n        (input.corpus && input.corpus.sourceSuccessCount) || 0,\n      phase: 'phase4-ai',\n      nextPhaseHint: result.guard.proceed\n        ? 'Phase 6 will format canonical briefing JSON and publish'\n        : 'AI produced no grounded categories — skip publish (keep last good summary)',\n    },\n  },\n];\n"
+      },
+      "id": "c9d0e1f2-a3b4-5678-9012-789012345678",
+      "name": "AI Categorize & Summarize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        280
+      ],
+      "notes": "Stage A+B via gemini-3.5-flash-lite. Rate limits: 15 RPM (~4.2s gap), 250K TPM, 500 RPD, max 16 req/run. Needs $vars.GEMINI_API_KEY (or $vars.AI_MOCK=true)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d7234a60-680d-4093-a3c7-1b723016441b",
+              "leftValue": "={{ $json.guard.proceed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d0e1f2a3-b4c5-6789-0123-890123456789",
+      "name": "IF Briefing Ready",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1920,
+        280
+      ],
+      "notes": "True → format + publish. False → AI failed guard (no publish overwrite)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Phase 6 — Build canonical schemaVersion:1 briefing JSON\nconst FORMAT_DEFAULT_TITLE = \"India News Summary\";\n\nfunction formatToAsiaKolkataIso(input) {\n  if (input == null || input === \"\") return null;\n  const d = input instanceof Date ? input : new Date(input);\n  if (Number.isNaN(d.getTime())) return null;\n\n  const parts = Object.fromEntries(\n    new Intl.DateTimeFormat(\"en-CA\", {\n      timeZone: \"Asia/Kolkata\",\n      year: \"numeric\",\n      month: \"2-digit\",\n      day: \"2-digit\",\n      hour: \"2-digit\",\n      minute: \"2-digit\",\n      second: \"2-digit\",\n      hourCycle: \"h23\",\n    })\n      .formatToParts(d)\n      .filter(function (p) {\n        return p.type !== \"literal\";\n      })\n      .map(function (p) {\n        return [p.type, p.value];\n      })\n  );\n\n  return (\n    parts.year +\n    \"-\" +\n    parts.month +\n    \"-\" +\n    parts.day +\n    \"T\" +\n    parts.hour +\n    \":\" +\n    parts.minute +\n    \":\" +\n    parts.second +\n    \"+05:30\"\n  );\n}\n\nfunction formatMapFailedSources(input) {\n  const collection = input.collection || {};\n  const corpus = input.corpus || {};\n  const raw =\n    collection.failedSources ||\n    corpus.failedSources ||\n    (Array.isArray(input.sourceStatuses)\n      ? input.sourceStatuses\n          .filter(function (s) {\n            return s.status === \"failed\";\n          })\n          .map(function (s) {\n            return {\n              sourceId: s.sourceId,\n              sourceName: s.sourceName,\n              error: s.error,\n            };\n          })\n      : []);\n\n  return raw.map(function (entry) {\n    return {\n      id: entry.id || entry.sourceId || \"unknown\",\n      name: entry.name || entry.sourceName || \"Unknown source\",\n      error: entry.error || \"unknown\",\n    };\n  });\n}\n\nfunction formatSanitizeCategories(categories) {\n  return (categories || [])\n    .map(function (cat) {\n      return {\n        category: cat.category,\n        bullets: (cat.bullets || [])\n          .map(function (bullet) {\n            return {\n              summary: String(bullet.summary || \"\").trim(),\n              sources: (bullet.sources || [])\n                .map(function (source) {\n                  return {\n                    title: String(source.title || \"\").trim(),\n                    url: String(source.url || \"\").trim(),\n                  };\n                })\n                .filter(function (source) {\n                  return (\n                    source.title && /^https?:\\/\\//i.test(source.url)\n                  );\n                }),\n            };\n          })\n          .filter(function (bullet) {\n            return bullet.summary && bullet.sources.length > 0;\n          }),\n      };\n    })\n    .filter(function (cat) {\n      return cat.bullets.length > 0;\n    });\n}\n\nfunction formatResolveGeneratedAt(input, now) {\n  const candidates = [input.triggeredAt, input.generatedAt, now || new Date()];\n  for (let i = 0; i < candidates.length; i++) {\n    const formatted = formatToAsiaKolkataIso(candidates[i]);\n    if (formatted) return formatted;\n  }\n  return formatToAsiaKolkataIso(now || new Date());\n}\n\nfunction formatBuildBriefing(input, options) {\n  options = options || {};\n  const config = input.config || {};\n  const collection = input.collection || {};\n  const corpus = input.corpus || {};\n  const categories = formatSanitizeCategories(input.categories);\n  const sourcesConfigured =\n    collection.sourcesConfigured != null\n      ? collection.sourcesConfigured\n      : Array.isArray(config.sources)\n        ? config.sources.length\n        : 0;\n  const sourcesSucceeded =\n    collection.sourcesSucceeded != null\n      ? collection.sourcesSucceeded\n      : corpus.sourceSuccessCount != null\n        ? corpus.sourceSuccessCount\n        : 0;\n  const articleCount =\n    corpus.articleCount != null\n      ? corpus.articleCount\n      : collection.articleCount != null\n        ? collection.articleCount\n        : input.articleCount != null\n          ? input.articleCount\n          : 0;\n\n  const briefing = {\n    schemaVersion: 1,\n    runId: input.runId,\n    generatedAt: formatResolveGeneratedAt(input, options.now),\n    timezone: input.timezone || config.timezone || \"Asia/Kolkata\",\n    title: options.title || FORMAT_DEFAULT_TITLE,\n    status: \"ok\",\n    meta: {\n      sourcesConfigured: sourcesConfigured,\n      sourcesSucceeded: sourcesSucceeded,\n      articleCount: articleCount,\n      failedSources: formatMapFailedSources(input),\n    },\n    categories: categories,\n  };\n\n  const proceed =\n    briefing.status === \"ok\" &&\n    briefing.categories.length > 0 &&\n    Boolean(briefing.runId);\n\n  return {\n    briefing: briefing,\n    guard: {\n      proceed: proceed,\n      reason: proceed ? null : \"no_publishable_categories\",\n      skipPublish: !proceed,\n    },\n  };\n}\n\n\nconst input = $input.first().json || {};\nconst formatted = formatBuildBriefing(input);\n\nreturn [\n  {\n    json: {\n      ...input,\n      briefing: formatted.briefing,\n      guard: {\n        ...(input.guard || {}),\n        ...formatted.guard,\n      },\n      phase: 'phase6-format',\n      nextPhaseHint: formatted.guard.proceed\n        ? 'Publish PUT to website API'\n        : 'No publishable categories — skip publish (keep last good summary)',\n    },\n  },\n];\n"
+      },
+      "id": "a1a2a3a4-b5b6-7890-cdef-123456789abc",
+      "name": "Format Briefing JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        160
+      ],
+      "notes": "Build schemaVersion:1 payload (meta + categories). Strips non-contract fields."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Phase 6/7 — PUT briefing to website API with retry/backoff\nconst input = $input.first().json || {};\nconst config = input.config || {};\nconst website = config.website || {};\nconst briefing = input.briefing;\n\nif (!briefing || !Array.isArray(briefing.categories) || briefing.categories.length === 0) {\n  return [\n    {\n      json: {\n        ...input,\n        phase: 'phase6-publish-skipped',\n        outcome: 'skipped_publish',\n        message: 'No briefing to publish — keeping last good website summary.',\n      },\n    },\n  ];\n}\n\nconst publishUrl = website.publishUrl;\nif (!publishUrl) {\n  throw new Error('Missing config.website.publishUrl');\n}\n\nconst apiKey =\n  typeof $vars !== 'undefined' && $vars.PUBLISH_API_KEY\n    ? $vars.PUBLISH_API_KEY\n    : '';\nif (!apiKey) {\n  throw new Error('Missing n8n Variable PUBLISH_API_KEY ($vars.PUBLISH_API_KEY)');\n}\n\nconst maxAttempts = 3;\nconst backoffMs = [2000, 5000, 10000];\nlet lastError = null;\nlet lastStatus = null;\n\nfor (let attempt = 0; attempt < maxAttempts; attempt++) {\n  try {\n    const res = await this.helpers.httpRequest({\n      method: website.publishMethod || 'PUT',\n      url: publishUrl,\n      headers: {\n        'Content-Type': 'application/json',\n        Authorization: 'Bearer ' + apiKey,\n      },\n      body: briefing,\n      returnFullResponse: true,\n      timeout: 30000,\n      ignoreHttpStatusErrors: true,\n    });\n\n    const statusCode = res.statusCode ?? res.status ?? 0;\n    lastStatus = statusCode;\n    let body = res.body ?? res.data ?? '';\n    if (body && typeof body === 'object') {\n      body = JSON.stringify(body);\n    }\n\n    if (statusCode >= 200 && statusCode < 300) {\n      let parsed = null;\n      try {\n        parsed = body ? JSON.parse(body) : null;\n      } catch {\n        parsed = { raw: body };\n      }\n\n      return [\n        {\n          json: {\n            ...input,\n            publish: {\n              ok: true,\n              statusCode,\n              attempt: attempt + 1,\n              response: parsed,\n            },\n            phase: 'phase6-published',\n            outcome: 'published',\n            message: 'Briefing published to website API.',\n          },\n        },\n      ];\n    }\n\n    lastError = 'HTTP ' + statusCode + (body ? ': ' + String(body).slice(0, 200) : '');\n    const retriable = statusCode === 408 || statusCode === 429 || statusCode >= 500;\n    if (retriable && attempt < maxAttempts - 1) {\n      await new Promise((r) => setTimeout(r, backoffMs[attempt] || 5000));\n      continue;\n    }\n\n    throw new Error('Publish failed: ' + lastError);\n  } catch (err) {\n    lastError = (err && err.message) || String(err);\n    if (attempt < maxAttempts - 1) {\n      await new Promise((r) => setTimeout(r, backoffMs[attempt] || 5000));\n      continue;\n    }\n  }\n}\n\nthrow new Error(\n  'Publish failed after ' +\n    maxAttempts +\n    ' attempts (status=' +\n    (lastStatus == null ? 'n/a' : lastStatus) +\n    '): ' +\n    (lastError || 'unknown')\n);\n"
+      },
+      "id": "b2b3b4b5-c6c7-8901-def0-234567890bcd",
+      "name": "Publish to API",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        160
+      ],
+      "notes": "PUT to config.website.publishUrl with Bearer PUBLISH_API_KEY. Retries 5xx/timeouts; failed runs do not wipe Railway storage."
+    },
+    {
+      "parameters": {},
+      "id": "fba28478-03e7-4854-a7cb-56390aaddfdf",
+      "name": "Done",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        160
+      ],
+      "notes": "Successful publish path — refresh Vercel site to verify."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Phase 3 — Empty corpus guard: do not call LLM; do not overwrite website\nconst input = $input.first().json || {};\n\nreturn [\n  {\n    json: {\n      runId: input.runId,\n      runDate: input.runDate,\n      triggeredAt: input.triggeredAt,\n      mode: input.mode,\n      timezone: input.timezone,\n      config: input.config,\n      sourceStatuses: input.sourceStatuses || [],\n      collection: input.collection || {},\n      articles: [],\n      categories: [],\n      corpus: input.corpus || {},\n      guard: input.guard || {\n        proceed: false,\n        reason: 'empty_corpus',\n        skipLlm: true,\n        skipPublish: true,\n      },\n      articleCount: 0,\n      dedupedCount: (input.corpus && input.corpus.dedupedCount) || 0,\n      sourceSuccessCount: (input.corpus && input.corpus.sourceSuccessCount) || 0,\n      phase: 'phase3-empty-guard',\n      outcome: 'skipped_llm_and_publish',\n      message:\n        'Empty corpus after normalize/dedupe — keeping last good website summary; no LLM; no publish overwrite.',\n    },\n  },\n];\n"
+      },
+      "id": "a7b8c9d0-e1f2-3456-0123-567890123456",
+      "name": "Empty Run Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        520
+      ],
+      "notes": "Log empty-run stats. Do not call LLM. Do not overwrite website latest summary."
+    },
+    {
+      "parameters": {},
+      "id": "b8c9d0e1-f2a3-4567-1234-678901234567",
+      "name": "End Empty Run",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1920,
+        520
+      ],
+      "notes": "Terminal for empty corpus path."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Phase 4 — AI empty/failed briefing: do not overwrite website\nconst input = $input.first().json || {};\n\nreturn [\n  {\n    json: {\n      runId: input.runId,\n      runDate: input.runDate,\n      triggeredAt: input.triggeredAt,\n      mode: input.mode,\n      timezone: input.timezone,\n      config: input.config,\n      sourceStatuses: input.sourceStatuses || [],\n      collection: input.collection || {},\n      corpus: input.corpus || {},\n      articles: input.articles || [],\n      categories: [],\n      ai: input.ai || {},\n      guard: {\n        proceed: false,\n        reason: (input.guard && input.guard.reason) || 'ai_empty_briefing',\n        skipLlm: false,\n        skipPublish: true,\n      },\n      articleCount: input.articleCount || 0,\n      phase: 'phase4-ai-failed-guard',\n      outcome: 'skipped_publish',\n      message:\n        'AI stage produced no publishable categories — keeping last good website summary; no publish overwrite.',\n    },\n  },\n];\n"
+      },
+      "id": "e1f2a3b4-c5d6-7890-1234-901234567890",
+      "name": "AI Failed Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        400
+      ],
+      "notes": "No grounded category bullets. Do not overwrite website latest summary."
+    },
+    {
+      "parameters": {},
+      "id": "f2a3b4c5-d6e7-8901-2345-012345678901",
+      "name": "End AI Fail",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        400
+      ],
+      "notes": "Terminal for AI empty/failed path."
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Mode Manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Mode Scheduled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Mode Manual": {
+      "main": [
+        [
+          {
+            "node": "Build Run Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Mode Scheduled": {
+      "main": [
+        [
+          {
+            "node": "Build Run Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Run Context": {
+      "main": [
+        [
+          {
+            "node": "Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Config": {
+      "main": [
+        [
+          {
+            "node": "Collect All Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect All Sources": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Dedupe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize & Dedupe": {
+      "main": [
+        [
+          {
+            "node": "IF Articles Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Articles Exist": {
+      "main": [
+        [
+          {
+            "node": "AI Categorize & Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Empty Run Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Categorize & Summarize": {
+      "main": [
+        [
+          {
+            "node": "IF Briefing Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Briefing Ready": {
+      "main": [
+        [
+          {
+            "node": "Format Briefing JSON",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Failed Guard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Briefing JSON": {
+      "main": [
+        [
+          {
+            "node": "Publish to API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish to API": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Empty Run Guard": {
+      "main": [
+        [
+          {
+            "node": "End Empty Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Failed Guard": {
+      "main": [
+        [
+          {
+            "node": "End AI Fail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

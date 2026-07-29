@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Bharat Brief - Latest Briefing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&amp;family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;family=Public+Sans:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "background": "#fdf8f8",
+                        "primary-fixed": "#e5e2e1",
+                        "surface-container-high": "#ebe7e6",
+                        "error-container": "#ffdad6",
+                        "inverse-surface": "#313030",
+                        "on-secondary-fixed": "#2c1600",
+                        "on-primary": "#ffffff",
+                        "outline": "#747878",
+                        "on-surface": "#1c1b1b",
+                        "on-tertiary": "#ffffff",
+                        "surface-dim": "#ddd9d8",
+                        "on-secondary-fixed-variant": "#693c00",
+                        "surface-container": "#f1edec",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed": "#9ff0fb",
+                        "on-secondary-container": "#673b00",
+                        "on-primary-container": "#858383",
+                        "secondary-fixed": "#ffdcbe",
+                        "inverse-on-surface": "#f4f0ef",
+                        "surface-container-low": "#f7f3f2",
+                        "on-tertiary-fixed-variant": "#004f56",
+                        "primary-container": "#1c1b1b",
+                        "tertiary-container": "#001f23",
+                        "surface-bright": "#fdf8f8",
+                        "secondary-fixed-dim": "#ffb870",
+                        "primary": "#000000",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed": "#1c1b1b",
+                        "on-tertiary-container": "#3b8f9a",
+                        "secondary": "#8b5000",
+                        "surface-variant": "#e5e2e1",
+                        "primary-fixed-dim": "#c8c6c5",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed-dim": "#82d3de",
+                        "on-background": "#1c1b1b",
+                        "surface-tint": "#5f5e5e",
+                        "on-surface-variant": "#444748",
+                        "surface-container-highest": "#e5e2e1",
+                        "secondary-container": "#fc9d2c",
+                        "on-error": "#ffffff",
+                        "surface": "#fdf8f8",
+                        "on-error-container": "#93000a",
+                        "inverse-primary": "#c8c6c5",
+                        "outline-variant": "#c4c7c7",
+                        "on-primary-fixed-variant": "#474746",
+                        "tertiary": "#000000",
+                        "on-tertiary-fixed": "#001f23"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-margin": "1.5rem",
+                        "section-gap": "4rem",
+                        "max-content-width": "680px",
+                        "paragraph-gap": "1.5rem",
+                        "inline-gap": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "label-caps": ["Public Sans"],
+                        "headline-md": ["Playfair Display"],
+                        "display-lg-mobile": ["Playfair Display"],
+                        "display-lg": ["Playfair Display"],
+                        "label-md": ["Public Sans"],
+                        "headline-sm": ["Playfair Display"],
+                        "body-lg": ["Merriweather"],
+                        "source-link": ["Public Sans"],
+                        "body-md": ["Merriweather"]
+                    },
+                    "fontSize": {
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700" }],
+                        "headline-md": ["30px", { "lineHeight": "38px", "fontWeight": "700" }],
+                        "display-lg-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "headline-sm": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "32px", "fontWeight": "400" }],
+                        "source-link": ["13px", { "lineHeight": "18px", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "28px", "fontWeight": "400" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Progress Indicator */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 2px;
+            background-color: #fc9d2c; /* secondary-container / Saffron */
+            width: 0%;
+            z-index: 50;
+            transition: width 0.1s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col relative">
+<div id="progress-bar"></div>
+<!-- TopAppBar -->
+<header class="bg-background border-b border-outline-variant w-full sticky top-0 z-40">
+<div class="flex justify-between items-center max-w-[680px] mx-auto px-container-margin py-4 w-full">
+<h1 class="font-headline-sm text-headline-sm text-primary tracking-tight">Bharat Brief</h1>
+<span class="font-label-md text-label-md text-on-surface-variant">Last updated: 5m ago</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow w-full max-w-[680px] mx-auto px-container-margin py-section-gap flex flex-col gap-section-gap">
+<!-- Header Section -->
+<section class="flex flex-col gap-paragraph-gap border-b border-surface-container-high pb-8">
+<div class="flex flex-col gap-2">
+<h2 class="font-display-lg text-display-lg text-primary tracking-tight hidden md:block">Bharat Brief</h2>
+<h2 class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-tight md:hidden">Bharat Brief</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">India’s hourly news briefing, summarized.</p>
+</div>
+<div class="flex flex-col gap-1">
+<p class="font-headline-sm text-headline-sm text-primary">26 Jul 2026 · 11:00 IST</p>
+<p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Refreshes every hour</p>
+</div>
+</section>
+<!-- Briefing Entries -->
+<div class="flex flex-col gap-section-gap">
+<!-- Category: Politics -->
+<article class="flex flex-col gap-inline-gap">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary-container"></span>
+<h3 class="font-label-caps text-label-caps text-secondary uppercase tracking-widest">Politics</h3>
+</div>
+<h4 class="font-headline-md text-headline-md text-primary">Parliament debates key infrastructure bill</h4>
+<p class="font-body-md text-body-md text-on-surface">
+                    Parliament debates key infrastructure bill as opposition seeks clearer timelines on state funding. The discussions highlight ongoing tensions regarding regional development allocations.
+                </p>
+<div class="mt-2">
+<a class="font-source-link text-source-link text-on-tertiary-container underline hover:text-primary transition-colors flex items-center gap-1 group w-fit" href="#">
+<span class="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">link</span>
+                        Lok Sabha discusses infra funding bill · India Today
+                    </a>
+</div>
+</article>
+<!-- Category: Sports -->
+<article class="flex flex-col gap-inline-gap">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary-container"></span>
+<h3 class="font-label-caps text-label-caps text-secondary uppercase tracking-widest">Sports</h3>
+</div>
+<h4 class="font-headline-md text-headline-md text-primary">Cricket team announces squad rotation</h4>
+<p class="font-body-md text-body-md text-on-surface">
+                    India’s cricket team announces squad rotation ahead of the next bilateral series. Key senior players are rested to manage workload ahead of major tournaments later this year.
+                </p>
+<div class="mt-2">
+<a class="font-source-link text-source-link text-on-tertiary-container underline hover:text-primary transition-colors flex items-center gap-1 group w-fit" href="#">
+<span class="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">link</span>
+                        Squad named for upcoming series · NDTV
+                    </a>
+</div>
+</article>
+<!-- Category: Business -->
+<article class="flex flex-col gap-inline-gap">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary-container"></span>
+<h3 class="font-label-caps text-label-caps text-secondary uppercase tracking-widest">Business</h3>
+</div>
+<h4 class="font-headline-md text-headline-md text-primary">Markets open mixed as banking stocks lead</h4>
+<p class="font-body-md text-body-md text-on-surface">
+                    Markets open mixed as banking stocks lead gains while IT remains cautious amidst global headwinds and recent earnings reports.
+                </p>
+<div class="mt-2">
+<a class="font-source-link text-source-link text-on-tertiary-container underline hover:text-primary transition-colors flex items-center gap-1 group w-fit" href="#">
+<span class="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">link</span>
+                        Sensex mixed at open · Times of India
+                    </a>
+</div>
+</article>
+<!-- Category: Technology -->
+<article class="flex flex-col gap-inline-gap">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary-container"></span>
+<h3 class="font-label-caps text-label-caps text-secondary uppercase tracking-widest">Technology</h3>
+</div>
+<h4 class="font-headline-md text-headline-md text-primary">New AI regulation framework proposed</h4>
+<p class="font-body-md text-body-md text-on-surface">
+                    New AI regulation framework proposed for ethical data usage in fintech. The draft aims to balance innovation with consumer protection and data privacy in digital lending.
+                </p>
+<div class="mt-2">
+<a class="font-source-link text-source-link text-on-tertiary-container underline hover:text-primary transition-colors flex items-center gap-1 group w-fit" href="#">
+<span class="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">link</span>
+                        Fintech AI rules draft released · Indian Express
+                    </a>
+</div>
+</article>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-background border-t border-outline-variant w-full py-section-gap mt-auto">
+<div class="flex flex-col items-center gap-paragraph-gap max-w-[680px] mx-auto px-container-margin text-center">
+<h5 class="font-label-caps text-label-caps text-primary tracking-widest uppercase">Bharat Brief</h5>
+<p class="font-label-md text-label-md text-on-surface-variant max-w-md">
+                Summaries are AI-generated from public Indian news sources. Full articles remain on the original sites.
+            </p>
+<nav class="flex flex-wrap justify-center gap-4">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors hover:underline" href="#">AI Disclosure</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors hover:underline" href="#">Privacy</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors hover:underline" href="#">Terms</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors hover:underline" href="#">Feedback</a>
+</nav>
+<p class="font-label-md text-label-md text-on-surface-variant opacity-70">
+                © 2024 Bharat Brief. All rights reserved.
+            </p>
+</div>
+</footer>
+<script>
+        // Reading Progress Indicator Script
+        window.addEventListener('scroll', () => {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = (winScroll / height) * 100;
+            document.getElementById('progress-bar').style.width = scrolled + '%';
+        });
+    </script>
+</body></html>

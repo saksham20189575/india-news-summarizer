@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "runId": "phase5-fixture-valid-0001",
+  "generatedAt": "2026-07-26T11:00:00+05:30",
+  "timezone": "Asia/Kolkata",
+  "title": "India News Summary",
+  "status": "ok",
+  "meta": {
+    "sourcesConfigured": 5,
+    "sourcesSucceeded": 4,
+    "articleCount": 28,
+    "failedSources": [
+      {
+        "id": "ht_india",
+        "name": "Hindustan Times",
+        "error": "timeout"
+      }
+    ]
+  },
+  "categories": [
+    {
+      "category": "Politics",
+      "bullets": [
+        {
+          "summary": "Parliament debates a key infrastructure bill as the opposition seeks clearer timelines on state funding. Discussions highlight ongoing tensions over regional development allocations.",
+          "sources": [
+            {
+              "title": "Lok Sabha discusses infra funding bill",
+              "url": "https://www.indiatoday.in/india/story/example-infra-bill"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Sports",
+      "bullets": [
+        {
+          "summary": "India’s cricket team announces squad rotation ahead of the next bilateral series. Key senior players are rested to manage workload before major tournaments later this year.",
+          "sources": [
+            {
+              "title": "Squad named for upcoming series",
+              "url": "https://www.ndtv.com/sports/example-squad-rotation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Business",
+      "bullets": [
+        {
+          "summary": "Markets open mixed as banking stocks lead gains while IT remains cautious amid global headwinds and recent earnings reports.",
+          "sources": [
+            {
+              "title": "Sensex mixed at open",
+              "url": "https://timesofindia.indiatimes.com/business/example-markets"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Technology",
+      "bullets": [
+        {
+          "summary": "A new AI regulation framework is proposed for ethical data usage in fintech. The draft aims to balance innovation with consumer protection and data privacy in digital lending.",
+          "sources": [
+            {
+              "title": "Fintech AI rules draft released",
+              "url": "https://indianexpress.com/article/technology/example-ai-rules"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

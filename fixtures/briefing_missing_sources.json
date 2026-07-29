@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "runId": "phase0-fixture-missing-sources",
+  "generatedAt": "2026-07-26T11:00:00+05:30",
+  "timezone": "Asia/Kolkata",
+  "title": "India News Summary",
+  "status": "ok",
+  "meta": {
+    "sourcesConfigured": 5,
+    "sourcesSucceeded": 5,
+    "articleCount": 10,
+    "failedSources": []
+  },
+  "categories": [
+    {
+      "category": "Politics",
+      "bullets": [
+        {
+          "summary": "This bullet is invalid because sources are empty.",
+          "sources": []
+        }
+      ]
+    }
+  ]
+}

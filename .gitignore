@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Build / cache
+.next/
+out/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# Runtime data (published briefings — keep directory via .gitkeep)
+api/data/latest-summary.json
+
+# Logs / OS
+logs/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# n8n local exports with secrets (keep placeholders only)
+workflows/**/*credential*
+workflows/**/*.secret.*

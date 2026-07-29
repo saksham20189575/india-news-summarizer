@@ -1,0 +1,214 @@
+{
+  "generatedAt": "2026-07-26T09:23:42.255Z",
+  "timezone": "Asia/Kolkata",
+  "runId": "local-process-ai",
+  "articles": [
+    {
+      "id": "edu-joshi",
+      "sourceId": "ndtv_india",
+      "sourceName": "NDTV",
+      "title": "Pralhad Joshi Assumes Charge As Union Education Minister",
+      "url": "https://www.ndtv.com/education/pralhad-joshi-assumes-charge-as-union-education-minister",
+      "publishedAt": "2026-07-26T13:53:02+05:30",
+      "snippet": "This comes after Dharmendra Pradhan announced his resignation in the interest of students.",
+      "content": "This comes after Dharmendra Pradhan announced his resignation in the interest of students.",
+      "category": "Education",
+      "confidence": 0.78,
+      "importance": 0.6
+    },
+    {
+      "id": "sports-cricket",
+      "sourceId": "toi_india",
+      "sourceName": "Times of India",
+      "title": "India wins cricket Test by 5 wickets in Mumbai",
+      "url": "https://timesofindia.indiatimes.com/sports/cricket-win-mumbai",
+      "publishedAt": "2026-07-26T12:00:00+05:30",
+      "snippet": "India sealed a 5-wicket win before tea on day four.",
+      "content": "India sealed a 5-wicket win before tea on day four.",
+      "category": "Sports",
+      "confidence": 0.78,
+      "importance": 0.6
+    },
+    {
+      "id": "health-hospital",
+      "sourceId": "toi_india",
+      "sourceName": "Times of India",
+      "title": "Punjab CM inaugurates 120-bed multi-speciality hospital in Moga",
+      "url": "https://timesofindia.indiatimes.com/india/hospital-moga",
+      "publishedAt": "2026-07-26T13:47:05+05:30",
+      "snippet": "Bhagwant Mann inaugurated a 120-bed multi-speciality hospital.",
+      "content": "Bhagwant Mann inaugurated a 120-bed multi-speciality hospital.",
+      "category": "Health",
+      "confidence": 0.78,
+      "importance": 0.6
+    },
+    {
+      "id": "weather-cleanup",
+      "sourceId": "india_today",
+      "sourceName": "India Today",
+      "title": "New Delhi civic body clean-up clears 60 metric tonnes of waste",
+      "url": "https://www.indiatoday.in/india/story/ndmc-cleanup-60-tonnes",
+      "publishedAt": "2026-07-26T14:23:39+05:30",
+      "snippet": "NDMC clean-up operation underway near Jantar Mantar.",
+      "content": "NDMC clean-up operation underway near Jantar Mantar.",
+      "category": "Weather",
+      "confidence": 0.78,
+      "importance": 0.6
+    },
+    {
+      "id": "biz-tatkal",
+      "sourceId": "ie_india",
+      "sourceName": "Indian Express",
+      "title": "West Central Railway revises tatkal booking process from August 1",
+      "url": "https://indianexpress.com/article/india/tatkal-token-rules",
+      "publishedAt": "2026-07-26T13:42:38+05:30",
+      "snippet": "New token rules for tatkal booking take effect August 1.",
+      "content": "New token rules for tatkal booking take effect August 1.",
+      "category": "Business",
+      "confidence": 0.78,
+      "importance": 0.6
+    }
+  ],
+  "categories": [
+    {
+      "category": "Sports",
+      "bullets": [
+        {
+          "summary": "India wins cricket Test by 5 wickets in Mumbai",
+          "sources": [
+            {
+              "title": "India wins cricket Test by 5 wickets in Mumbai",
+              "url": "https://timesofindia.indiatimes.com/sports/cricket-win-mumbai"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Business",
+      "bullets": [
+        {
+          "summary": "West Central Railway revises tatkal booking process from August 1",
+          "sources": [
+            {
+              "title": "West Central Railway revises tatkal booking process from August 1",
+              "url": "https://indianexpress.com/article/india/tatkal-token-rules"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Health",
+      "bullets": [
+        {
+          "summary": "Punjab CM inaugurates 120-bed multi-speciality hospital in Moga",
+          "sources": [
+            {
+              "title": "Punjab CM inaugurates 120-bed multi-speciality hospital in Moga",
+              "url": "https://timesofindia.indiatimes.com/india/hospital-moga"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Education",
+      "bullets": [
+        {
+          "summary": "Pralhad Joshi Assumes Charge As Union Education Minister",
+          "sources": [
+            {
+              "title": "Pralhad Joshi Assumes Charge As Union Education Minister",
+              "url": "https://www.ndtv.com/education/pralhad-joshi-assumes-charge-as-union-education-minister"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "category": "Weather",
+      "bullets": [
+        {
+          "summary": "New Delhi civic body clean-up clears 60 metric tonnes of waste",
+          "sources": [
+            {
+              "title": "New Delhi civic body clean-up clears 60 metric tonnes of waste",
+              "url": "https://www.indiatoday.in/india/story/ndmc-cleanup-60-tonnes"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "ai": {
+    "model": "mock",
+    "mock": true,
+    "thinkingLevel": "minimal",
+    "categorizedCount": 5,
+    "droppedCount": 0,
+    "lowConfidence": 0,
+    "groupCount": 5,
+    "summarizedCategories": 5,
+    "skippedCategories": [],
+    "errors": [],
+    "categorizeStats": {
+      "inputCount": 5,
+      "categorizedCount": 5,
+      "droppedCount": 0,
+      "unknownCategory": 0,
+      "lowConfidence": 0,
+      "unknownId": 0,
+      "minConfidence": 0.35
+    },
+    "summarizeStats": [
+      {
+        "category": "Sports",
+        "rawBulletCount": 1,
+        "keptBulletCount": 1,
+        "droppedNoSources": 0,
+        "droppedEmpty": 0
+      },
+      {
+        "category": "Business",
+        "rawBulletCount": 1,
+        "keptBulletCount": 1,
+        "droppedNoSources": 0,
+        "droppedEmpty": 0
+      },
+      {
+        "category": "Health",
+        "rawBulletCount": 1,
+        "keptBulletCount": 1,
+        "droppedNoSources": 0,
+        "droppedEmpty": 0
+      },
+      {
+        "category": "Education",
+        "rawBulletCount": 1,
+        "keptBulletCount": 1,
+        "droppedNoSources": 0,
+        "droppedEmpty": 0
+      },
+      {
+        "category": "Weather",
+        "rawBulletCount": 1,
+        "keptBulletCount": 1,
+        "droppedNoSources": 0,
+        "droppedEmpty": 0
+      }
+    ],
+    "rateLimit": {
+      "mock": true
+    }
+  },
+  "guard": {
+    "proceed": true,
+    "reason": null,
+    "skipLlm": false,
+    "skipPublish": false
+  },
+  "corpus": null,
+  "sourceStatuses": [],
+  "phase": "phase4-ai"
+}
