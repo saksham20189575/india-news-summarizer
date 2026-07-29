@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readLatest, writeLatestAtomic } from "@/lib/briefing-store";
+import { BlobError } from "@vercel/blob";
+import { readLatest, writeLatestAtomic, formatPersistError } from "@/lib/briefing-store";
 import { validateBriefingPayload } from "@/lib/briefing-validate";
 import { checkPublishAuth } from "@/lib/publish-auth";
 import type { Briefing } from "@/lib/types";
@@ -57,14 +58,24 @@ export async function PUT(request: NextRequest) {
     });
   } catch (err) {
     console.error("Failed to write latest summary", err);
-    const message =
-      err instanceof Error ? err.message : "Failed to persist summary";
+    const message = formatPersistError(err);
     const isConfigError =
       message.includes("Blob storage is not configured") ||
       message.includes("No blob credentials found");
+    const isBlobError = err instanceof BlobError;
+    const isAccessMismatch =
+      message.toLowerCase().includes("access") &&
+      (message.toLowerCase().includes("private") ||
+        message.toLowerCase().includes("public"));
     return NextResponse.json(
       {
         error: isConfigError ? message : "Failed to persist summary",
+        ...(isBlobError || isAccessMismatch ? { detail: message } : {}),
+        ...(isAccessMismatch
+          ? {
+              hint: 'Set BLOB_ACCESS to "private" or "public" to match your Vercel Blob store, then redeploy.',
+            }
+          : {}),
       },
       { status: isConfigError ? 503 : 500 }
     );

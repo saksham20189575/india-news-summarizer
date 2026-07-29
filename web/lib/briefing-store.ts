@@ -1,11 +1,18 @@
 import fs from "fs";
 import path from "path";
-import { list, put } from "@vercel/blob";
+import { BlobError, get, list, put, type BlobAccessType } from "@vercel/blob";
 import type { Briefing } from "./types";
 
 const BLOB_PATHNAME = "latest-summary.json";
 const FILE_PATH = path.join(process.cwd(), "data", "latest-summary.json");
 const TMP_PATH = path.join(process.cwd(), "data", "latest-summary.json.tmp");
+
+function getBlobAccess(): BlobAccessType {
+  const raw = process.env.BLOB_ACCESS?.trim().toLowerCase();
+  if (raw === "public" || raw === "private") return raw;
+  // New Vercel Blob stores are often private; briefing is served via GET /api/summary anyway.
+  return "private";
+}
 
 /** True when Vercel Blob credentials are available (token or connected store + OIDC). */
 export function hasBlobStorageConfigured(): boolean {
@@ -30,18 +37,20 @@ function assertWritableStorage(): void {
 }
 
 async function readFromBlob(): Promise<Briefing | null> {
+  const access = getBlobAccess();
   const { blobs } = await list({ prefix: BLOB_PATHNAME, limit: 1 });
   const blob = blobs.find((entry) => entry.pathname === BLOB_PATHNAME);
   if (!blob) {
     return null;
   }
 
-  const res = await fetch(blob.url, { cache: "no-store" });
-  if (!res.ok) {
+  const result = await get(blob.pathname, { access });
+  if (!result || result.statusCode !== 200) {
     return null;
   }
 
-  return (await res.json()) as Briefing;
+  const text = await new Response(result.stream).text();
+  return JSON.parse(text) as Briefing;
 }
 
 function readFromFile(): Briefing | null {
@@ -55,7 +64,7 @@ function readFromFile(): Briefing | null {
 
 async function writeToBlob(briefing: Briefing): Promise<void> {
   await put(BLOB_PATHNAME, JSON.stringify(briefing, null, 2), {
-    access: "public",
+    access: getBlobAccess(),
     addRandomSuffix: false,
     allowOverwrite: true,
     contentType: "application/json",
@@ -94,10 +103,21 @@ export function getStorageMode(): "blob" | "file" {
 export function getStorageDiagnostics() {
   return {
     mode: getStorageMode(),
+    blobAccess: getBlobAccess(),
     hasReadWriteToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
     hasStoreId: Boolean(process.env.BLOB_STORE_ID),
     onVercel: Boolean(process.env.VERCEL),
   };
+}
+
+export function formatPersistError(err: unknown): string {
+  if (err instanceof BlobError) {
+    return err.message;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return "Failed to persist summary";
 }
 
 export { FILE_PATH as LOCAL_DATA_PATH };
