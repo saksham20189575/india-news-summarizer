@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const Ajv2020 = require("ajv/dist/2020");
 
-const SCHEMA_PATH = path.join(__dirname, "../../contracts/briefing.schema.json");
+const SCHEMA_PATH = path.join(__dirname, "../contracts/briefing.schema.json");
 const DATA_PATH = path.join(__dirname, "../data/latest-summary.json");
 const TMP_PATH = path.join(__dirname, "../data/latest-summary.json.tmp");
 

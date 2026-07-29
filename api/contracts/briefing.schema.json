@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-automations.local/contracts/briefing.schema.json",
+  "title": "IndiaNewsBriefing",
+  "description": "Canonical latest-summary payload published by n8n and served by GET /api/summary (schemaVersion 1).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "generatedAt",
+    "timezone",
+    "title",
+    "status",
+    "meta",
+    "categories"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ISO-8601 timestamp, preferably with Asia/Kolkata offset"
+    },
+    "timezone": {
+      "type": "string",
+      "const": "Asia/Kolkata"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ok"]
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourcesConfigured",
+        "sourcesSucceeded",
+        "articleCount",
+        "failedSources"
+      ],
+      "properties": {
+        "sourcesConfigured": { "type": "integer", "minimum": 0 },
+        "sourcesSucceeded": { "type": "integer", "minimum": 0 },
+        "articleCount": { "type": "integer", "minimum": 0 },
+        "failedSources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "name", "error"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "error": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "categories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "bullets"],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "Politics",
+              "Sports",
+              "Business",
+              "Technology",
+              "Entertainment",
+              "Health",
+              "Education",
+              "Crime",
+              "Weather",
+              "World"
+            ]
+          },
+          "bullets": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["summary", "sources"],
+              "properties": {
+                "summary": { "type": "string", "minLength": 1 },
+                "sources": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["title", "url"],
+                    "properties": {
+                      "title": { "type": "string", "minLength": 1 },
+                      "url": {
+                        "type": "string",
+                        "pattern": "^https?://"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
